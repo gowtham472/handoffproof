@@ -169,6 +169,8 @@ the verified script).
   an internal network, and carry resource limits. SQL workflow steps accept
   a single `SELECT COUNT` only, and backup commands are allowlisted argv
   without a shell. Verdicts remain controller-issued evidence records.
+  Bring Your Own App runs only applications the operator trusts, and that
+  Compose validation is text-based and not a complete isolation guarantee.
 
 ## Operating rules for production use
 

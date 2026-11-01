@@ -1,0 +1,68 @@
+[
+  {
+    "evidence_id": "EV-c498630e",
+    "run_id": "run-1793520691032620500",
+    "drill": "withdrawn_test_token",
+    "workflow": "registration",
+    "assertion": "user row exists after register",
+    "passed": true,
+    "log_ref": "",
+    "artifact_sha256": "432d669e777a523a2328921be0d1661ba111f215eec6efe3475ec3c1cdb668b0",
+    "created_at": "2026-11-01T08:11:45.1659069Z"
+  },
+  {
+    "evidence_id": "EV-001e47ce",
+    "run_id": "run-1793520691032620500",
+    "drill": "withdrawn_test_token",
+    "workflow": "booking",
+    "assertion": "booking row exists after booking",
+    "passed": true,
+    "log_ref": "",
+    "artifact_sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "created_at": "2026-11-01T08:11:45.7044587Z"
+  },
+  {
+    "evidence_id": "EV-20744003",
+    "run_id": "run-1793520691032620500",
+    "drill": "withdrawn_test_token",
+    "workflow": "confirmation_email",
+    "assertion": "exactly one confirmation email in sink",
+    "passed": true,
+    "log_ref": "",
+    "artifact_sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "created_at": "2026-11-01T08:11:45.708394Z"
+  },
+  {
+    "evidence_id": "EV-a4254043",
+    "run_id": "run-1793520691032620500",
+    "drill": "withdrawn_test_token",
+    "workflow": "booking",
+    "assertion": "booking row exists after token withdrawal",
+    "passed": true,
+    "log_ref": "",
+    "artifact_sha256": "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+    "created_at": "2026-11-01T08:11:46.220769Z"
+  },
+  {
+    "evidence_id": "EV-0984a7ba",
+    "run_id": "run-1793520691032620500",
+    "drill": "withdrawn_test_token",
+    "workflow": "confirmation_email",
+    "assertion": "exactly one confirmation email in sink",
+    "passed": false,
+    "log_ref": "",
+    "artifact_sha256": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+    "created_at": "2026-11-01T08:11:56.4000906Z"
+  }
+]
+--- diagnosis (tokens in=3919 out=3556 total=7475) ---
+{"findings": [{"alternatives_considered": ["Registration depends on withdrawn token - ruled out by this pass"], "business_impact": "Registration record was stored in this run.", "causal_chain": ["Registration workflow ran in run-1793520691032620500", "Controller assertion 'user row exists after register' passed"], "classification": "observed_pass", "confidence": 0.97, "evidence_ids": ["EV-c498630e"], "finding_id": "F-registration-baseline-pass", "root_cause": "User row creation succeeded in this run with no observed dependency on the withdrawn credential.", "workflow": "registration"}, {"alternatives_considered": ["Booking storage was already broken before withdrawal - ruled out by this pass"], "business_impact": "Booking record was stored before withdrawal in this run.", "causal_chain": ["Booking workflow ran in run-1793520691032620500", "Controller assertion 'booking row exists after booking' passed"], "classification": "observed_pass", "confidence": 0.97, "evidence_ids": ["EV-001e47ce"], "finding_id": "F-booking-baseline-pass", "root_cause": "Booking row creation succeeded in this run before token withdrawal effect.", "workflow": "booking"}, {"alternatives_considered": ["Email sink was misconfigured from start - ruled out by this pass"], "business_impact": "Confirmation email was delivered to sink before withdrawal in this run.", "causal_chain": ["Confirmation_email workflow ran in run-1793520691032620500", "Controller assertion 'exactly one confirmation email in sink' passed"], "classification": "observed_pass", "confidence": 0.97, "evidence_ids": ["EV-20744003"], "finding_id": "F-email-baseline-pass", "root_cause": "Confirmation email delivery succeeded in this run before token withdrawal effect.", "workflow": "confirmation_email"}, {"alternatives_considered": ["Booking fails when token is withdrawn - ruled out by this pass", "Booking was not retried after withdrawal - ruled out by assertion text 'after token withdrawal'"], "business_impact": "Customer can still create a booking record when the test credential is invalid, so failure is silent downstream.", "causal_chain": ["Withdrawn_test_token drill ran in run-1793520691032620500", "Controller assertion 'booking row exists after token withdrawal' passed"], "classification": "observed_pass", "confidence": 0.97, "evidence_ids": ["EV-a4254043"], "finding_id": "F-booking-post-withdrawal-pass", "root_cause": "Booking row persistence does not depend on the withdrawn test credential in this run.", "workflow": "booking"}, {"alternatives_considered": ["Email never worked at baseline - ruled out by EV-20744003 passing", "Booking also failed after withdrawal - ruled out by EV-a4254043 passing", "Sink contained duplicate emails - not supported because assertion is 'exactly one' and failed after withdrawal"], "business_impact": "Booking is stored but customer receives no confirmation email, causing silent failure and support load.", "causal_chain": ["Withdrawn_test_token drill ran in run-1793520691032620500", "Booking row still created after withdrawal", "Controller assertion 'exactly one confirmation email in sink' failed"], "classification": "observed_failure", "confidence": 0.95, "evidence_ids": ["EV-0984a7ba", "EV-a4254043", "EV-20744003"], "failed_step": "exactly one confirmation email in sink", "finding_id": "F-email-post-withdrawal-fail", "root_cause": "Confirmation email delivery depends on the withdrawn test credential; after withdrawal booking persists but email does not. Exact credential name unknown from evidence alone.", "workflow": "confirmation_email"}], "status": "ok"}
+--- repair_proposal (tokens total=20281) ---
+{"repairs": [{"addresses_findings": ["F-email-post-withdrawal-fail"], "diff": "--- a/app/src/index.ts\n+++ b/app/src/index.ts\n@@ -68,8 +68,9 @@\n   try {\n     await sendMail(email, 'Booking confirmed', 'Your booking #' + bookingId + ' for ' + service + ' is confirmed.');\n   } catch (err) {\n     console.error('confirmation email failed for booking ' + bookingId + ': ' + errMsg(err));\n+    res.status(202).json({ id: bookingId, status: 'pending_confirmation_email', warning: 'booking stored but confirmation email failed' });\n+    return;\n   }\n   res.status(201).json({ id: bookingId, status: 'confirmed' });", "human_action": null, "rationale": "Booking currently returns 201 confirmed even when sendMail throws, causing silent failure. Return 202 pending_confirmation_email so the failure is visible to caller and operator while preserving the booking row.", "repair_id": "R-email-failure-visible", "reruns_required": ["withdrawn_test_token"], "touches_protected_paths": false, "type": "code"}, {"addresses_findings": ["F-email-post-withdrawal-fail"], "diff": "--- a/app/docs/HANDOVER.md\n+++ b/app/docs/HANDOVER.md\n@@ -1,3 +1,10 @@\n # Handover (draft)\n \n-Run the app with `npm start`. Ask Ravi for the mail key.\n+Run the app with `npm start`.\n+\n+Required mail config:\n+- MAIL_SINK_URL: mail provider base URL.\n+- MAIL_API_TOKEN: organization-owned token required for confirmation_email. Booking returns 202 pending_confirmation_email if email delivery fails.\n+- Token is read in app/src/mail.ts and listed in app/.env.example. Rotate via provider dashboard.\n--- a/app/.env.example\n+++ b/app/.env.example\n@@ -1,5 +1,5 @@\n-# Handover: copy to .env and fill in. The mail token value itself is not\n-# written down here; ask the previous developer for it.\n+# Handover: copy to .env and fill in. MAIL_API_TOKEN must be an\n+# organization-owned token. Obtain from mail provider dashboard.\n PORT=3000\n DATABASE_URL=postgres://[REDACTED:connection-string]@localhost:55432/handoffproof\n MAIL_SINK_URL=http://localhost:4100", "human_action": null, "rationale": "Handover does not declare MAIL_API_TOKEN as required organization-owned config or its effect on confirmation_email. Document variables, ownership, and visible 202 behavior.", "repair_id": "R-mail-token-docs", "reruns_required": ["withdrawn_test_token"], "touches_protected_paths": false, "type": "documentation"}, {"addresses_findings": ["F-email-post-withdrawal-fail"], "diff": null, "human_action": "Provision an organization-owned MAIL_API_TOKEN in the mail provider, set it as MAIL_API_TOKEN in the production .env, and confirm booking creates exactly one confirmation email. Remove developer-owned token access.", "rationale": "Controller-only action outside sandbox. Email delivery requires a valid organization-owned credential.", "repair_id": "R-mail-token-human", "reruns_required": ["withdrawn_test_token"], "touches_protected_paths": false, "type": "human_action_required"}]}
+repair R-mail-token-docs rejected/unappliable: git apply: exit status 1: error: patch failed: app/docs/HANDOVER.md:1
+error: app/docs/HANDOVER.md: patch does not apply
+
+applied repair: R-email-failure-visible (code)
+--- controller rerun passed: true ---
+--- assessment (tokens total=6645) ---
+{"acceptance_integrity": {"hash_after": "4822f7467f08da454b5f42fa0943b9b240077653fccd1a3328c254dafa86a722", "hash_before": "4822f7467f08da454b5f42fa0943b9b240077653fccd1a3328c254dafa86a722", "unchanged": true}, "checks": [{"after_evidence_id": null, "before_evidence_id": "EV-c498630e", "check": "registration: user row exists after register", "classification": "observed_pass", "note": "Controller assertion passed in run-1793520691032620500 per EV-c498630e. Repair rerun produced no new evidence record; tail shows registration passed but cannot be cited as after evidence."}, {"after_evidence_id": null, "before_evidence_id": "EV-001e47ce", "check": "booking: booking row exists after booking", "classification": "observed_pass", "note": "Controller assertion passed before withdrawal per EV-001e47ce. Repair rerun produced no new evidence record; tail shows booking passed but has no evidence_id."}, {"after_evidence_id": null, "before_evidence_id": "EV-20744003", "check": "confirmation_email: exactly one confirmation email in sink at baseline", "classification": "observed_pass", "note": "Controller assertion passed before withdrawal per EV-20744003. Repair rerun produced no new evidence record; tail shows confirmation-email passed but has no evidence_id."}, {"after_evidence_id": null, "before_evidence_id": "EV-a4254043", "check": "booking: booking row exists after token withdrawal", "classification": "observed_pass", "note": "Controller assertion passed after withdrawal per EV-a4254043. Shows booking persistence does not depend on withdrawn credential. Repair rerun produced no new evidence record."}, {"after_evidence_id": null, "before_evidence_id": "EV-0984a7ba", "check": "confirmation_email: exactly one confirmation email in sink after token withdrawal", "classification": "observed_failure", "note": "Controller assertion failed after withdrawal per EV-0984a7ba. Baseline EV-20744003 passed and booking persisted per EV-a4254043, showing silent failure: booking stored but email not delivered. Repair rerun produced no new evidence record; tail shows 4 passed but recovery is not evidenced by controller record."}], "limitations": ["Exact withdrawn credential name unknown from evidence alone; no code reference cited in evidence.", "Repair rerun tail shows 4 passed but produced no new controller evidence_id, so post-repair status is not observed_pass.", "Other drills missing_configuration and incomplete_backup were not run; related risks remain untested.", "Dependencies outside sandbox reach remain untested_dependency and require human confirmation."], "summary": "Booking persists after test credential withdrawal per EV-a4254043 but confirmation email delivery fails per EV-0984a7ba. Baseline registration, booking, and email passed per EV-c498630e, EV-001e47ce, EV-20744003. Failure is silent. Repair rerun tail shows 4 passed but no new evidence record exists. Acceptance manifest unchanged."}

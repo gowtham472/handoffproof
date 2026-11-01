@@ -17,8 +17,10 @@ environment), one evidence view.
 
 - `bash scripts/check.sh` passes; manifest verifies before and after every drill and rerun.
 - One fault goes red to green with identical acceptance hashes, shown with before/after evidence IDs.
-- The Meta model does real work on screen (dependency map, drill plan, diagnosis from
-  controller evidence, repair proposal) and never issues a verdict.
+- The Meta model does real work on screen (dependency map, diagnosis from
+  controller evidence, repair proposal) and never issues a verdict. Drills
+  run in a fixed controller order; the prompt's `drill_plan` phase is
+  defined but not invoked by the current code.
 - `docs/RESULTS.md` holds measured numbers only; misses reported plainly.
 - Demo video under 3:00, submitted on the indie track with all contributors listed.
 
@@ -64,8 +66,9 @@ hp-submission-checklist).
 ## Agent/controller interface
 
 CLI (`cmd/handoffproof`): `scan` = static scan + intake + dependency proposal (JSON
-phases 1–2); `drill` = drill plan + execution + diagnosis + repair proposal + rerun
-(phases 3–7); `report` = static HTML evidence report.
+phases 1–2); `drill` = fixed-order execution + diagnosis + repair proposal + rerun
+(the `drill_plan` phase is defined in the prompt but not invoked); `report` = static
+HTML evidence report.
 
 - `internal/agent` (hp-meta-api-client): renders the system prompt by joining the JSON
   arrays; Meta client; tool loop. Validates every tool call against the allowlist and

@@ -1,0 +1,34 @@
+{
+  "verdicts": [
+    {
+      "citation_ok": true,
+      "evidence_ok": true,
+      "finding_id": "F-registration-baseline-pass",
+      "issues": []
+    },
+    {
+      "citation_ok": true,
+      "evidence_ok": true,
+      "finding_id": "F-booking-baseline-pass",
+      "issues": []
+    },
+    {
+      "citation_ok": true,
+      "evidence_ok": true,
+      "finding_id": "F-email-baseline-pass",
+      "issues": []
+    },
+    {
+      "citation_ok": true,
+      "evidence_ok": true,
+      "finding_id": "F-booking-post-withdrawal-pass",
+      "issues": []
+    },
+    {
+      "citation_ok": true,
+      "evidence_ok": true,
+      "finding_id": "F-email-post-withdrawal-fail",
+      "issues": []
+    }
+  ]
+}

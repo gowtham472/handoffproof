@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +19,13 @@ import (
 // cmdEval scores detection arms against ground truth and writes
 // docs/RESULTS.md (hp-eval-results-table). Measured numbers only.
 func cmdEval(root string, args []string) error {
+	evDir := filepath.Join(root, "evidence")
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--evidence-dir" && i+1 < len(args) {
+			evDir = args[i+1]
+			i++
+		}
+	}
 	demoScan, err := scan.Scan(filepath.Join(root, "demo-app"))
 	if err != nil {
 		return err
@@ -26,7 +34,7 @@ func cmdEval(root string, args []string) error {
 	if err != nil {
 		return err
 	}
-	recs := recordsFrom(root)
+	recs := recordsFromDir(evDir)
 	demoTruth, err := loadTruth(filepath.Join(root, "eval", "ground_truth.json"))
 	if err != nil {
 		return err
@@ -70,7 +78,7 @@ func cmdEval(root string, args []string) error {
 	drills.name, drills.app = "scan + drills, no model", "demo-app"
 	// Demo app, full arm: the drills arm plus the agent security event
 	// recorded when the model read the injected comment.
-	events := parseSecurityEvents(root)
+	events := parseSecurityEvents(evDir)
 	full := split(demoTruth, func(f truthFault) bool {
 		if staticSignal(demoScan, f.Kind) || drillSignal(recs, f.Kind) {
 			return true
@@ -81,11 +89,11 @@ func cmdEval(root string, args []string) error {
 	// Second fixture (author-written), static arm: each expected_static
 	// signal in the truth file is checked against the scan output.
 	held := split(heldTruth, func(f truthFault) bool { return expectedStaticSignal(heldScan, f.ExpectedStatic) })
-	held.name, held.app = "static_scan_only (second fixture (author-written))", "heldout-app"
+	held.name, held.app = "static_scan_only (second fixture, author-written)", "heldout-app"
 	held.falseAl = countFalseAlarms(heldScan, map[string]bool{"API_KEY": true, "ask Sam": true})
 
 	commit := gitShort(root)
-	tokens := liveTokens(root)
+	tokens := liveTokens(evDir)
 	var b strings.Builder
 	b.WriteString("# Results\n\n")
 	b.WriteString("Measured on the demo app and a second fixture (author-written). Misses are reported plainly; anything not run is labelled a target.\n\n")
@@ -107,6 +115,7 @@ func cmdEval(root string, args []string) error {
 	}
 	b.WriteString("\nEvidence behind each row: `evidence/run-*.json`, `evidence/diagnosis-*.json`, `evidence/verification.json`.\n")
 	b.WriteString("Outsider fault slot: add `eval/outsider_fault.json` (kind + target) and rerun `handoffproof eval`; until then the outsider arm is a **target**, not a result.\n")
+	b.WriteString(modelQualitySection(evDir, demoTruth))
 	out := filepath.Join(root, "docs", "RESULTS.md")
 	if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
 		return err
@@ -116,12 +125,12 @@ func cmdEval(root string, args []string) error {
 	return nil
 }
 
-func recordsFrom(root string) []struct {
+func recordsFromDir(evDir string) []struct {
 	Drill    string
 	Workflow string
 	Passed   bool
 } {
-	matches, _ := filepath.Glob(filepath.Join(root, "evidence", "run-*.json"))
+	matches, _ := filepath.Glob(filepath.Join(evDir, "run-*.json"))
 	var out []struct {
 		Drill    string
 		Workflow string
@@ -195,7 +204,11 @@ func countFalseAlarms(rep scan.Report, allowed map[string]bool) int {
 type truthFault struct {
 	ID             string `json:"id"`
 	Kind           string `json:"kind"`
+	Description    string `json:"description"`
 	ExpectedStatic string `json:"expected_static"`
+	Evidence       []struct {
+		Path string `json:"path"`
+	} `json:"evidence"`
 }
 
 func loadTruth(path string) ([]truthFault, error) {
@@ -274,10 +287,10 @@ type securityEvent struct {
 
 var securityEventRe = regexp.MustCompile(`security event: ([a-z0-9_]+) at (\S+)`)
 
-func parseSecurityEvents(root string) []securityEvent {
+func parseSecurityEvents(evDir string) []securityEvent {
 	var out []securityEvent
-	for _, pat := range []string{"evidence/*.err", "evidence/*.log"} {
-		matches, _ := filepath.Glob(filepath.Join(root, pat))
+	for _, pat := range []string{"*.err", "*.log"} {
+		matches, _ := filepath.Glob(filepath.Join(evDir, pat))
 		for _, m := range matches {
 			b, err := os.ReadFile(m)
 			if err != nil {
@@ -306,11 +319,11 @@ func hasSecurityEvent(events []securityEvent, kind string) bool {
 
 var tokenRe = regexp.MustCompile(`total=(\d+)`)
 
-func liveTokens(root string) string {
+func liveTokens(evDir string) string {
 	total := 0
 	found := false
-	for _, name := range []string{"evidence/live-scan.log", "evidence/live-full.log"} {
-		b, err := os.ReadFile(filepath.Join(root, name))
+	for _, name := range []string{"live-scan.log", "live-full.log"} {
+		b, err := os.ReadFile(filepath.Join(evDir, name))
 		if err != nil {
 			continue
 		}
@@ -325,6 +338,238 @@ func liveTokens(root string) string {
 		return "target (no live run logged)"
 	}
 	return fmt.Sprintf("%d (scan + one full loop, logged)", total)
+}
+
+// ---- Model quality: computed only from existing artifacts in evDir. ----
+
+func runLabel(path string) string {
+	if info, err := os.Stat(path); err == nil {
+		return filepath.Base(path) + " (modified " + info.ModTime().Format("2006-01-02") + ")"
+	}
+	return filepath.Base(path)
+}
+
+type citationCounts struct {
+	Total, Verified, Invalid, Missing, UnknownIDs int
+	Found                                          bool
+	Label                                          string
+}
+
+func countCitations(evDir string) citationCounts {
+	path := filepath.Join(evDir, "verification.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return citationCounts{Label: "verification.json"}
+	}
+	var doc struct {
+		Verdicts []struct {
+			CitationOK bool     `json:"citation_ok"`
+			EvidenceOK bool     `json:"evidence_ok"`
+			Issues     []string `json:"issues"`
+		} `json:"verdicts"`
+	}
+	if json.Unmarshal(raw, &doc) != nil {
+		return citationCounts{Label: runLabel(path)}
+	}
+	c := citationCounts{Found: true, Label: runLabel(path)}
+	for _, v := range doc.Verdicts {
+		c.Total++
+		switch {
+		case v.CitationOK && v.EvidenceOK:
+			c.Verified++
+		case !v.CitationOK:
+			c.Invalid++
+		default:
+			c.UnknownIDs++
+		}
+		for _, issue := range v.Issues {
+			if strings.Contains(strings.ToLower(issue), "missing") {
+				c.Missing++
+			}
+		}
+	}
+	return c
+}
+
+type mapDependency struct {
+	ID      string `json:"id"`
+	Kind    string `json:"kind"`
+	Name    string `json:"name"`
+	Sources []struct {
+		Path string `json:"path"`
+	} `json:"source_references"`
+}
+
+var phaseHeaderRe = regexp.MustCompile(`--- (\w+) \(tokens(?: in=(\d+) out=(\d+))? total=(\d+)\) ---`)
+
+// extractDependencyMap finds the dependency_map phase JSON in a live log.
+func extractDependencyMap(text string) ([]mapDependency, bool) {
+	i := strings.Index(text, "--- dependency_map")
+	if i < 0 {
+		return nil, false
+	}
+	j := strings.Index(text[i:], "{")
+	if j < 0 {
+		return nil, false
+	}
+	start := i + j
+	depth := 0
+	for k := start; k < len(text); k++ {
+		switch text[k] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				var doc struct {
+					Dependencies []mapDependency `json:"dependencies"`
+				}
+				if json.Unmarshal([]byte(text[start:k+1]), &doc) == nil {
+					return doc.Dependencies, true
+				}
+				return nil, false
+			}
+		}
+	}
+	return nil, false
+}
+
+var depKindsForFault = map[string]map[string]bool{
+	"missing_configuration": {"environment_variable": true, "credential": true},
+	"silent_failure":        {"credential": true, "external_service": true},
+	"incomplete_backup":     {"backup_gap": true, "file_storage": true},
+	"documentation_gap":     {"documentation_gap": true},
+}
+
+var envTokenRe = regexp.MustCompile(`[A-Z][A-Z0-9_]{2,}`)
+
+// mapRecall matches ground-truth faults to model dependencies by kind
+// (compatibility table above) and target (an env-style token from the
+// fault description in the dependency name/id, or a shared source path).
+func mapRecall(deps []mapDependency, truth []truthFault) (matched, observable int, details []string) {
+	for _, f := range truth {
+		kinds, ok := depKindsForFault[f.Kind]
+		if !ok {
+			continue
+		}
+		observable++
+		tokens := envTokenRe.FindAllString(f.Description, -1)
+		paths := map[string]bool{}
+		for _, e := range f.Evidence {
+			paths[strings.TrimPrefix(e.Path, "demo-app/")] = true
+		}
+		hit := ""
+		for _, d := range deps {
+			if !kinds[d.Kind] {
+				continue
+			}
+			for _, tok := range tokens {
+				if strings.Contains(d.Name, tok) || strings.Contains(d.ID, strings.ToLower(tok)) {
+					hit = d.ID
+				}
+			}
+			for _, s := range d.Sources {
+				if paths[s.Path] {
+					hit = d.ID
+				}
+			}
+			if hit != "" {
+				break
+			}
+		}
+		if hit != "" {
+			matched++
+			details = append(details, f.ID+" -> "+hit)
+		} else {
+			details = append(details, f.ID+" -> no matching dependency")
+		}
+	}
+	return matched, observable, details
+}
+
+type phaseStat struct {
+	Phase, Label, Tokens string
+}
+
+var totalNumRe = regexp.MustCompile(`total=(\d+)`)
+
+func phaseTotal(tokens string) int {
+	m := totalNumRe.FindStringSubmatch(tokens)
+	if m == nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(m[1])
+	return n
+}
+
+func phaseStats(evDir string) ([]phaseStat, int, string) {
+	var out []phaseStat
+	retries := 0
+	retryRe := regexp.MustCompile(`(?i)schema validation failed|previous output failed schema validation`)
+	var labels []string
+	for _, name := range []string{"live-scan.log", "live-full.log", "verify.log"} {
+		path := filepath.Join(evDir, name)
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		text := strings.ReplaceAll(string(raw), "\x00", "")
+		label := runLabel(path)
+		labels = append(labels, label)
+		retries += len(retryRe.FindAllString(text, -1))
+		for _, m := range phaseHeaderRe.FindAllStringSubmatch(text, -1) {
+			tok := "total=" + m[4]
+			if m[2] != "" {
+				tok = "in=" + m[2] + " out=" + m[3] + " total=" + m[4]
+			}
+			out = append(out, phaseStat{Phase: m[1], Label: label, Tokens: tok})
+		}
+	}
+	return out, retries, strings.Join(labels, ", ")
+}
+
+func modelQualitySection(evDir string, demoTruth []truthFault) string {
+	var b strings.Builder
+	b.WriteString("\n## Model quality (from existing artifacts only)\n\n")
+	cc := countCitations(evDir)
+	if cc.Found {
+		fmt.Fprintf(&b, "Citation verification, run `%s`: %d verdicts, %d verified, %d invalid, %d missing-citation issues, %d unknown-evidence-id verdicts.\n\n", cc.Label, cc.Total, cc.Verified, cc.Invalid, cc.Missing, cc.UnknownIDs)
+	} else {
+		b.WriteString("Citation verification: cannot compute - no parseable `verification.json` in the evidence directory.\n\n")
+	}
+	scanLog := filepath.Join(evDir, "live-scan.log")
+	if raw, err := os.ReadFile(scanLog); err == nil {
+		text := strings.ReplaceAll(string(raw), "\x00", "")
+		if deps, ok := extractDependencyMap(text); ok {
+			matched, observable, details := mapRecall(deps, demoTruth)
+			fmt.Fprintf(&b, "Dependency-map recall, run `%s`: %d of %d observable ground-truth faults have a matching dependency (%s). Fault kinds with no dependency form (for example prompt_injection) are excluded from the denominator.\n\n", runLabel(scanLog), matched, observable, strings.Join(details, "; "))
+		} else {
+			b.WriteString("Dependency-map recall: cannot compute - no dependency_map phase JSON found in `live-scan.log`.\n\n")
+		}
+	} else {
+		b.WriteString("Dependency-map recall: cannot compute - `live-scan.log` not present in the evidence directory.\n\n")
+	}
+	stats, retries, labels := phaseStats(evDir)
+	if len(stats) > 0 {
+		fmt.Fprintf(&b, "Tokens and schema retries, runs `%s`:\n\n", labels)
+		verifierTotal, otherTotal := 0, 0
+		for _, s := range stats {
+			fmt.Fprintf(&b, "- `%s` from `%s`: %s tokens.\n", s.Phase, s.Label, s.Tokens)
+			if n := phaseTotal(s.Tokens); s.Phase == "verification" {
+				verifierTotal += n
+			} else {
+				otherTotal += n
+			}
+		}
+		fmt.Fprintf(&b, "- Schema-retry markers recorded across those logs: %d (the loop logs a line only when retries are exhausted, so a zero count means none were recorded, not that none occurred).\n", retries)
+		if verifierTotal > 0 {
+			fmt.Fprintf(&b, "- The `Tokens/run` figure for full HandoffProof above excludes the adversarial verifier (%d tokens), so total recorded model usage across these runs is about %d tokens.\n", verifierTotal, verifierTotal+otherTotal)
+		}
+	} else {
+		b.WriteString("Tokens and schema retries: cannot compute - no phase token headers found in the live logs.\n")
+	}
+	b.WriteString("\nThese model-quality numbers come from one recorded run with five findings and are not a general accuracy claim.\n")
+	return b.String()
 }
 
 func gitShort(root string) string {
