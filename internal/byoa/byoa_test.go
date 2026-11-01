@@ -15,7 +15,7 @@ func TestProfileValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.ID != "miniapp" || len(p.Workflows) != 2 {
+	if p.ID != "miniapp" || len(p.Workflows) != 3 {
 		t.Fatalf("profile = %+v", p)
 	}
 	bad := *p
@@ -41,6 +41,27 @@ func TestComposeValidationRejectsPrivileged(t *testing.T) {
 	}
 	if err := ValidateCompose(dir, "docker-compose.yml"); err == nil {
 		t.Fatal("privileged compose should be rejected")
+	}
+}
+
+func TestHeaderValidationAndSubstitution(t *testing.T) {
+	p, err := Load("testdata/miniapp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bad := *p
+	bad.Workflows = append([]Workflow(nil), p.Workflows...)
+	bad.Workflows[0].Steps = append([]Step(nil), p.Workflows[0].Steps...)
+	bad.Workflows[0].Steps[0].Headers = map[string]string{"Bad Header": "x"}
+	if err := bad.Validate("testdata/miniapp"); err == nil || !strings.Contains(err.Error(), "unsafe header") {
+		t.Fatalf("bad header error = %v", err)
+	}
+	r := &runner{req: RunRequest{Env: map[string]string{"MAIL_API_TOKEN": "s3cret"}}}
+	if got := r.substEnv("Bearer ${MAIL_API_TOKEN}"); got != "Bearer s3cret" {
+		t.Fatalf("substEnv = %q", got)
+	}
+	if got := r.substEnv("${MISSING}"); got != "" {
+		t.Fatalf("missing env must expand empty, got %q", got)
 	}
 }
 

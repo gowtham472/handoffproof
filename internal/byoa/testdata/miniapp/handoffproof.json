@@ -22,6 +22,12 @@
       ]
     },
     {
+      "name": "headers",
+      "steps": [
+        { "name": "custom header reaches the app", "type": "http", "service": "app", "method": "GET", "path": "/headers", "headers": { "X-Test-Key": "${MAIL_API_TOKEN}" }, "expected_status": 200 }
+      ]
+    },
+    {
       "name": "mail",
       "depends_on": ["MAIL_API_TOKEN"],
       "steps": [

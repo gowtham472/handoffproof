@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -236,7 +237,7 @@ func (r *runner) waitHealthy(ctx context.Context, env []string) error {
 			if s.HealthPath == "" {
 				continue
 			}
-			status, _, err := r.http(ctx, env, s.Name, "GET", s.HealthPath, nil)
+			status, _, err := r.http(ctx, env, s.Name, "GET", s.HealthPath, nil, nil)
 			if err != nil || status != 200 {
 				ok = false
 				break
@@ -258,24 +259,36 @@ func (r *runner) waitHealthy(ctx context.Context, env []string) error {
 func probeCommand(runtime, method string) []string {
 	switch runtime {
 	case "node":
-		script := `(async()=>{const o={method:process.env.HP_METHOD||'GET',headers:{'content-type':'application/json'}};const b=process.env.HP_BODY||'';if(b&&o.method!=='GET')o.body=b;const r=await fetch(process.env.HP_URL,o);console.log(r.status);console.log(await r.text())})().catch(e=>{console.error(e.message);process.exit(1)})`
+		script := `(async()=>{const h={'content-type':'application/json'};try{Object.assign(h,JSON.parse(process.env.HP_HEADERS||'{}'))}catch(e){}const o={method:process.env.HP_METHOD||'GET',headers:h};const b=process.env.HP_BODY||'';if(b&&o.method!=='GET')o.body=b;const r=await fetch(process.env.HP_URL,o);console.log(r.status);console.log(await r.text())})().catch(e=>{console.error(e.message);process.exit(1)})`
 		return []string{"node", "-e", script}
 	case "curl":
 		return []string{"curl", "-sS", "-X", method, "-H", "content-type: application/json", "-d", "@-", "-w", "\n%{http_code}", "http://127.0.0.1:__PORT____PATH__"}
 	case "python3":
-		script := `import os,urllib.request,sys; d=(os.environ.get('HP_BODY') or '').encode() or None; req=urllib.request.Request(os.environ['HP_URL'],data=d,method=os.environ.get('HP_METHOD','GET'),headers={'content-type':'application/json'}); 
+		script := `import os,urllib.request,sys,json; d=(os.environ.get('HP_BODY') or '').encode() or None; h={'content-type':'application/json'}; h.update(json.loads(os.environ.get('HP_HEADERS') or '{}')); req=urllib.request.Request(os.environ['HP_URL'],data=d,method=os.environ.get('HP_METHOD','GET'),headers=h); 
 try:
  r=urllib.request.urlopen(req,timeout=10); print(r.status); print(r.read().decode('utf-8','replace'))
 except urllib.error.HTTPError as e:
  print(e.code); print(e.read().decode('utf-8','replace'))`
 		return []string{"python3", "-c", script}
 	case "wget":
-		return []string{"wget", "-qO-", "http://127.0.0.1:__PORT____PATH__"}
+		return []string{"wget", "-S", "-qO-", "http://127.0.0.1:__PORT____PATH__"}
 	}
 	return nil
 }
 
-func (r *runner) http(ctx context.Context, env []string, service, method, path string, body map[string]string) (int, string, error) {
+// substEnv expands ${VAR} references from the run environment so header
+// and body values can use configured secrets without storing them in the
+// profile.
+func (r *runner) substEnv(s string) string {
+	return envRefRe.ReplaceAllStringFunc(s, func(m string) string {
+		name := envRefRe.FindStringSubmatch(m)[1]
+		return r.req.Env[name]
+	})
+}
+
+var envRefRe = regexp.MustCompile(`\$\{([A-Z][A-Z0-9_]*)\}`)
+
+func (r *runner) http(ctx context.Context, env []string, service, method, path string, body map[string]string, headers map[string]string) (int, string, error) {
 	svc, ok := r.req.Profile.Service(service)
 	if !ok {
 		return 0, "", fmt.Errorf("unknown service %q", service)
@@ -285,10 +298,19 @@ func (r *runner) http(ctx context.Context, env []string, service, method, path s
 	}
 	method = strings.ToUpper(method)
 	url := fmt.Sprintf("http://127.0.0.1:%d%s", svc.Port, path)
-	var raw []byte
-	if len(body) > 0 {
-		raw, _ = json.Marshal(body)
+	subBody := map[string]string{}
+	for k, v := range body {
+		subBody[k] = r.substEnv(v)
 	}
+	var raw []byte
+	if len(subBody) > 0 {
+		raw, _ = json.Marshal(subBody)
+	}
+	subHeaders := map[string]string{}
+	for k, v := range headers {
+		subHeaders[k] = r.substEnv(v)
+	}
+	headersJSON, _ := json.Marshal(subHeaders)
 	args := probeCommand(r.req.Profile.ProbeRuntime, method)
 	if args == nil {
 		return 0, "", fmt.Errorf("unsupported probe runtime")
@@ -296,7 +318,19 @@ func (r *runner) http(ctx context.Context, env []string, service, method, path s
 	for i, a := range args {
 		args[i] = strings.ReplaceAll(strings.ReplaceAll(a, "__PORT__", strconv.Itoa(svc.Port)), "__PATH__", path)
 	}
-	execEnv := []string{"HP_URL=" + url, "HP_METHOD=" + method, "HP_BODY=" + string(raw)}
+	// curl and wget take headers as arguments, inserted before the URL.
+	if rt := r.req.Profile.ProbeRuntime; (rt == "curl" || rt == "wget") && len(subHeaders) > 0 {
+		var extra []string
+		for name, value := range subHeaders {
+			if rt == "curl" {
+				extra = append(extra, "-H", name+": "+value)
+			} else {
+				extra = append(extra, "--header", name+": "+value)
+			}
+		}
+		args = append(args[:len(args)-1], append(extra, args[len(args)-1])...)
+	}
+	execEnv := []string{"HP_URL=" + url, "HP_METHOD=" + method, "HP_BODY=" + string(raw), "HP_HEADERS=" + string(headersJSON)}
 	full := []string{"compose", "-f", r.req.Profile.ComposeFile, "-f", "hp-override.yml", "-p", r.project, "exec", "-T"}
 	for _, e := range execEnv {
 		full = append(full, "-e", e)
@@ -315,10 +349,20 @@ func (r *runner) http(ctx context.Context, env []string, service, method, path s
 	err := cmd.Run()
 	out := buf.String()
 	if r.req.Profile.ProbeRuntime == "wget" {
-		if err != nil {
-			return 0, out, err
+		// wget -S prints response headers (including the status line)
+		// to stderr, which is merged into out. Parse the real status.
+		status := 0
+		for _, line := range strings.Split(out, "\n") {
+			if fields := strings.Fields(strings.TrimSpace(line)); len(fields) >= 2 && strings.HasPrefix(fields[0], "HTTP/") {
+				if n, cerr := strconv.Atoi(fields[1]); cerr == nil {
+					status = n
+				}
+			}
 		}
-		return 200, out, nil
+		if status == 0 {
+			return 0, out, fmt.Errorf("wget probe returned no HTTP status: %w", err)
+		}
+		return status, out, nil
 	}
 	if r.req.Profile.ProbeRuntime == "curl" {
 		lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
@@ -353,9 +397,16 @@ func tail(s string, n int) string {
 	return s
 }
 
-func (r *runner) emit(recs *[]evidence.Record, drill, workflow, assertion string, passed bool, faultTarget string) {
+// emit records one verdict. The artifact hash binds the measured probe
+// output (status/body, count, log text) when available, falling back to
+// the assertion identity for summary records.
+func (r *runner) emit(recs *[]evidence.Record, drill, workflow, assertion string, passed bool, faultTarget string, artifact ...string) {
 	r.seq++
-	sum := sha256.Sum256([]byte(assertion + "|" + r.sourceSHA))
+	bind := assertion + "|" + r.sourceSHA
+	if len(artifact) > 0 && artifact[0] != "" {
+		bind = artifact[0] + "|" + r.sourceSHA
+	}
+	sum := sha256.Sum256([]byte(bind))
 	*recs = append(*recs, evidence.Record{
 		ID: evidence.NewID(r.req.RunID, drill, workflow, r.seq), RunID: r.req.RunID, Drill: drill,
 		Workflow: workflow, Assertion: assertion, Passed: passed, ArtifactSHA256: hex.EncodeToString(sum[:]),
@@ -364,41 +415,43 @@ func (r *runner) emit(recs *[]evidence.Record, drill, workflow, assertion string
 	})
 }
 
-func (r *runner) runStep(ctx context.Context, env []string, st Step) bool {
+func (r *runner) runStep(ctx context.Context, env []string, st Step) (bool, string) {
 	deadline := 0
 	if st.PollSeconds > 0 {
 		deadline = st.PollSeconds
 	}
 	for {
 		passed := false
+		artifact := ""
 		switch st.Type {
 		case "http":
-			status, body, err := r.http(ctx, env, st.Service, st.Method, st.Path, st.Body)
+			status, body, err := r.http(ctx, env, st.Service, st.Method, st.Path, st.Body, st.Headers)
 			want := st.ExpectedStatus
 			if want == 0 {
 				want = 200
 			}
 			passed = err == nil && status == want && (st.Contains == "" || strings.Contains(body, st.Contains))
+			artifact = fmt.Sprintf("http %d %s", status, body)
 		case "sql_count":
-			passed = r.sqlCount(ctx, env, st) >= st.MinCount && st.MinCount > 0 || (st.MinCount == 0 && r.sqlCount(ctx, env, st) >= 0)
-			// Recompute cleanly: a zero minimum means at least zero rows.
-			if st.MinCount == 0 {
-				passed = r.sqlCount(ctx, env, st) >= 0
-			}
+			n := r.sqlCount(ctx, env, st)
+			passed = n >= st.MinCount
+			artifact = fmt.Sprintf("sql_count %d (%s)", n, st.Query)
 		case "log_contains":
 			out, err := r.compose(ctx, env, "logs", "--tail", "200", st.Service)
 			passed = err == nil && strings.Contains(out, st.Contains)
+			artifact = "logs: " + tail(out, 500)
 		case "file_exists":
 			_, err := r.exec(ctx, env, st.Service, []string{"test", "-f", st.FilePath})
 			passed = err == nil
+			artifact = "file_exists " + st.FilePath
 		}
 		if passed || deadline <= 0 {
-			return passed
+			return passed, artifact
 		}
 		deadline -= 2
 		select {
 		case <-ctx.Done():
-			return false
+			return false, artifact
 		case <-time.After(2 * time.Second):
 		}
 	}
@@ -453,8 +506,8 @@ func (r *runner) runWorkflows(ctx context.Context, env []string, drill string, f
 	for _, w := range r.req.Profile.Workflows {
 		all := true
 		for _, st := range w.Steps {
-			passed := r.runStep(ctx, env, st)
-			r.emit(&recs, drill, w.Name, st.Name, passed, faultTarget)
+			passed, artifact := r.runStep(ctx, env, st)
+			r.emit(&recs, drill, w.Name, st.Name, passed, faultTarget, artifact)
 			if !passed {
 				all = false
 			}
@@ -568,7 +621,24 @@ func Run(ctx context.Context, req RunRequest) ([]evidence.Record, error) {
 			return base, fmt.Errorf("backup restore: %w", err)
 		}
 		recs, _ := r.runWorkflows(ctx, r.envList(nil, nil), req.Kind, "")
-		return append(base, recs...), nil
+		// Fault phase: start fresh and skip the restore entirely, as if
+		// the backup were incomplete. Detection is proven only when a
+		// workflow that passed after the real restore now fails; a
+		// profile whose workflows never read restored data honestly
+		// reports "not detected" instead of a free pass.
+		r.down(ctx)
+		if err := r.up(ctx, nil, nil); err != nil {
+			return append(base, recs...), err
+		}
+		faultRecs, faultResults := r.runWorkflows(ctx, r.envList(nil, nil), req.Kind, "backup_not_restored")
+		detected := false
+		for _, ok := range faultResults {
+			if !ok {
+				detected = true
+			}
+		}
+		r.emit(&faultRecs, req.Kind, "incomplete_backup", "missing restore is detected by a workflow", detected, "backup_not_restored")
+		return append(append(base, recs...), faultRecs...), nil
 	default:
 		return nil, fmt.Errorf("unsupported BYOA run kind %q", req.Kind)
 	}

@@ -18,9 +18,10 @@ import (
 const ProfileFile = "handoffproof.json"
 
 var (
-	slugRe   = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,62}$`)
-	envRe    = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
-	sqlCount = regexp.MustCompile(`(?is)^\s*select\s+count\s*\(\s*(\*|[a-z0-9_."]+)\s*\)\s+from\s+[a-z0-9_." ]+$`)
+	slugRe       = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,62}$`)
+	envRe        = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+	sqlCount     = regexp.MustCompile(`(?is)^\s*select\s+count\s*\(\s*(\*|[a-z0-9_."]+)\s*\)\s+from\s+[a-z0-9_." ]+$`)
+	headerNameRe = regexp.MustCompile(`^[A-Za-z0-9-]+$`)
 )
 
 type Service struct {
@@ -47,6 +48,7 @@ type Step struct {
 	Method         string            `json:"method,omitempty"`
 	Path           string            `json:"path,omitempty"`
 	Body           map[string]string `json:"body,omitempty"`
+	Headers        map[string]string `json:"headers,omitempty"`
 	ExpectedStatus int               `json:"expected_status,omitempty"`
 	Contains       string            `json:"contains,omitempty"`
 	Query          string            `json:"query,omitempty"`
@@ -220,6 +222,11 @@ func (p *Profile) Validate(dir string) error {
 				case "", "GET", "POST", "PUT", "PATCH", "DELETE":
 				default:
 					add("workflow %q step %q has an unsupported method", w.Name, st.Name)
+				}
+				for name, value := range st.Headers {
+					if !headerNameRe.MatchString(name) || strings.ContainsAny(value, "\r\n") {
+						add("workflow %q step %q has an unsafe header %q", w.Name, st.Name, name)
+					}
 				}
 			case "sql_count":
 				if !services[st.Service] || !sqlCount.MatchString(st.Query) || strings.Contains(st.Query, ";") {

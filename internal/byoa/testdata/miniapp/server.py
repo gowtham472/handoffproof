@@ -9,6 +9,16 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b'{"ok":true}')
             return
+        if self.path == "/headers":
+            if self.headers.get("X-Test-Key") == os.environ.get("MAIL_API_TOKEN"):
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"header":"ok"}')
+            else:
+                self.send_response(403)
+                self.end_headers()
+                self.wfile.write(b'{"header":"missing"}')
+            return
         if self.path == "/mail":
             if os.environ.get("MAIL_API_TOKEN") == "test-token":
                 self.send_response(200)
