@@ -103,7 +103,9 @@ func CopySource(src, dst string) error {
 			return fmt.Errorf("symlink in application tree is not allowed: %s", rel)
 		}
 		if d.IsDir() {
-			if skipDirs[d.Name()] && rel != "." {
+			// Skip build/runtime directories only at the application root:
+			// a nested source directory named data or dist is application code.
+			if skipDirs[d.Name()] && rel != "." && filepath.Dir(rel) == "." {
 				return filepath.SkipDir
 			}
 			return os.MkdirAll(filepath.Join(dst, rel), 0o755)

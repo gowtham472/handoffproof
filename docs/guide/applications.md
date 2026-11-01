@@ -17,7 +17,10 @@ Choose:
 
 The imported source is copied. Secret-like files (`.env`, key and credential
 files) and symlinks are rejected or skipped by the same secret-path rules
-used by the scanner.
+used by the scanner. Build and runtime folders (`node_modules`, `dist`,
+`backups`, `data`) are skipped only at the application root — a nested
+source folder with one of those names, such as `engine/src/data`, is
+application code and is copied.
 
 ## 2. Write the profile
 

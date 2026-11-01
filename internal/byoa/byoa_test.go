@@ -44,6 +44,37 @@ func TestComposeValidationRejectsPrivileged(t *testing.T) {
 	}
 }
 
+func TestCopySourceKeepsNestedDataDirs(t *testing.T) {
+	src := t.TempDir()
+	dst := filepath.Join(t.TempDir(), "app")
+	write := func(rel, content string) {
+		t.Helper()
+		full := filepath.Join(src, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("engine/src/data/places.json", `{"places":[]}`)
+	write("data/runtime-state.txt", "runtime")
+	write("node_modules/left-pad/index.js", "module.exports = 1")
+	write("main.txt", "app")
+	if err := CopySource(src, dst); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "engine", "src", "data", "places.json")); err != nil {
+		t.Fatalf("nested source data directory was dropped: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "data", "runtime-state.txt")); !os.IsNotExist(err) {
+		t.Fatalf("root runtime data directory should be skipped, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dst, "node_modules")); !os.IsNotExist(err) {
+		t.Fatalf("root node_modules should be skipped, stat err = %v", err)
+	}
+}
+
 func TestRunnerPythonFixture(t *testing.T) {
 	if _, err := exec.LookPath("docker"); err != nil {
 		t.Skip("docker not available")
