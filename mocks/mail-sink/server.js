@@ -3,7 +3,16 @@
 // Validates a Bearer token on every send so token withdrawal is deterministic.
 // State is in memory and reset between drills via POST /admin/reset.
 const http = require('node:http');
-const { createHash, randomUUID } = require('node:crypto');
+const { createHash, randomUUID, timingSafeEqual } = require('node:crypto');
+
+const MAX_BODY = 1024 * 1024;
+const MAX_MESSAGES = 1000;
+
+function safeEqual(a, b) {
+  const ba = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  return ba.length === bb.length && ba.length > 0 && timingSafeEqual(ba, bb);
+}
 
 function fingerprint(token) {
   if (!token) return 'none';
@@ -25,7 +34,11 @@ function createServer() {
     return h.startsWith('Bearer ') ? h.slice(7) : '';
   }
   function isAdmin(req) {
-    return adminToken.length > 0 && bearer(req) === adminToken;
+    return safeEqual(bearer(req), adminToken);
+  }
+  function canRead(req) {
+    if (process.env.MAIL_SINK_REQUIRE_AUTH !== '1') return true;
+    return isAdmin(req);
   }
   function sendJson(res, status, obj) {
     const body = JSON.stringify(obj);
@@ -35,7 +48,16 @@ function createServer() {
   function readBody(req) {
     return new Promise((resolve, reject) => {
       const chunks = [];
-      req.on('data', (c) => chunks.push(c));
+      let size = 0;
+      req.on('data', (c) => {
+        size += c.length;
+        if (size > MAX_BODY) {
+          reject(new Error('body_too_large'));
+          req.destroy();
+          return;
+        }
+        chunks.push(c);
+      });
       req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
       req.on('error', reject);
     });
@@ -48,7 +70,7 @@ function createServer() {
     try {
       if (req.method === 'GET' && path === '/health') {
         status = 200;
-        return sendJson(res, status, { status: 'ok', messages: messages.length });
+        return sendJson(res, status, { status: 'ok' });
       }
       if (req.method === 'POST' && path === '/send') {
         const token = bearer(req);
@@ -76,10 +98,15 @@ function createServer() {
           received_at: new Date().toISOString(),
         };
         messages.push(msg);
+        if (messages.length > MAX_MESSAGES) messages.splice(0, messages.length - MAX_MESSAGES);
         status = 200;
         return sendJson(res, status, { stored: true, id: msg.id });
       }
       if (req.method === 'GET' && path === '/messages') {
+        if (!canRead(req)) {
+          status = 401;
+          return sendJson(res, status, { error: 'unauthorized' });
+        }
         const to = url.searchParams.get('to');
         const list = to ? messages.filter((m) => m.to === to) : messages;
         status = 200;
