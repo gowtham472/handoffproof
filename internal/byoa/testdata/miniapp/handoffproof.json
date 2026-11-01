@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "miniapp",
+  "name": "Mini Python App",
+  "compose_file": "docker-compose.yml",
+  "app_service": "app",
+  "probe_runtime": "python3",
+  "services": [
+    { "name": "app", "port": 3000, "health_path": "/health" }
+  ],
+  "env": [
+    { "name": "MAIL_API_TOKEN", "required": true, "secret": true }
+  ],
+  "credentials": [
+    { "name": "mail", "env_var": "MAIL_API_TOKEN" }
+  ],
+  "workflows": [
+    {
+      "name": "health",
+      "steps": [
+        { "name": "health endpoint responds", "type": "http", "service": "app", "method": "GET", "path": "/health", "expected_status": 200 }
+      ]
+    },
+    {
+      "name": "mail",
+      "depends_on": ["MAIL_API_TOKEN"],
+      "steps": [
+        { "name": "mail endpoint accepts credential", "type": "http", "service": "app", "method": "GET", "path": "/mail", "expected_status": 200 }
+      ]
+    }
+  ]
+}

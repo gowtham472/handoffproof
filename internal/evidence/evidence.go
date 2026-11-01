@@ -29,6 +29,11 @@ type Record struct {
 	LogRef         string    `json:"log_ref"`
 	ArtifactSHA256 string    `json:"artifact_sha256"`
 	CreatedAt      time.Time `json:"created_at"`
+	// Optional Bring Your Own App provenance. Empty for demo-app records.
+	AppID          string `json:"app_id,omitempty"`
+	ProfileVersion int    `json:"profile_version,omitempty"`
+	SourceSHA256   string `json:"source_sha256,omitempty"`
+	FaultTarget    string `json:"fault_target,omitempty"`
 }
 
 // NewID returns a stable short ID such as EV-1a2b3c4d.

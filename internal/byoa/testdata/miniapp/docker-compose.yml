@@ -1,0 +1,9 @@
+services:
+  app:
+    image: python:3.12-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      MAIL_API_TOKEN: ${MAIL_API_TOKEN-}
+    command: ["python3", "server.py"]
