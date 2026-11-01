@@ -515,6 +515,7 @@ func cmdReport(root string, args []string) error {
 			}
 			if len(f.Sources) > 0 {
 				v.SourceRef = f.Sources[0]
+				v.SourceRefs = append([]string(nil), f.Sources...)
 			}
 			switch v.Class {
 			case evidence.InferredRisk:
