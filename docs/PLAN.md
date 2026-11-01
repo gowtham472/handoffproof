@@ -1,6 +1,6 @@
 # HandoffProof — 3-day build plan (Step 1)
 
-Status: APPROVED 2026-11-01. Day 1 in progress. Decisions recorded in `docs/DECISIONS.md`.
+Status: APPROVED 2026-11-01. Day 2 closed live. Power-ups F1–F6 done (CI gate, verifier, what-if, benchmark, remediation PRs, Handover Score). Next: Day 3 (video, submission). Decisions in `docs/DECISIONS.md`.
 Date: 2026-11-01. Deadline: Nov 4, 9:00 PM ET. Submit target: Nov 4, ~3:00 PM ET (6+ hours early).
 Inputs read: `AGENTS.md`, all 16 skills in `.agents/skills/`, `prompts/handoffproof_agent_prompt.json`.
 None of those files were modified.
@@ -144,6 +144,18 @@ Day 3 — honest numbers, video, submission.
 | 3.3 Submit prep | hp-submission-checklist | Public repo, README event section + setup + video link, secrets sweep incl. history, form fields, indie track, contributors | All 7 checklist items verified; official rules re-read |
 
 Nov 4 morning is contingency only; submit by ~3:00 PM ET.
+
+## Post-audit security remediation (2026-11-01, done)
+
+Strict multi-agent audit found 3 CRITICAL + H1–H13 + M/L findings. All remediated
+one by one; the finding-by-finding log, threat model, and residual risks live in
+`docs/SECURITY.md`. Headlines: controller-generated compose override (drill
+sandboxes publish no ports, internal-only networks, `docker exec` health checks),
+loopback binds, per-run crypto tokens, env allowlist, always-authenticated
+console, secret-path deny-by-meaning + fail-closed redaction, measured (never
+asserted) integrity, `npm ci` + non-root images + CI permissions. Verified:
+`bash scripts/check.sh` OK, full Go suite green, 4 drills correct, acceptance
+4/4, console 401/403/200 probes. Remaining before Day 3: video + submission prep.
 
 ## Validation Plan
 

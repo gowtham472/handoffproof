@@ -433,6 +433,26 @@
         }
       }
     },
+    "verification": {
+      "type": "object",
+      "required": ["verdicts"],
+      "properties": {
+        "verdicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["finding_id", "citation_ok", "evidence_ok", "issues"],
+            "properties": {
+              "finding_id": { "type": "string" },
+              "citation_ok": { "type": "boolean" },
+              "evidence_ok": { "type": "boolean" },
+              "issues": { "type": "array", "items": { "type": "string" } },
+              "corrected_source_references": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
     "assessment": {
       "type": "object",
       "required": ["summary", "checks", "limitations", "acceptance_integrity"],

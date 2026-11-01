@@ -2,7 +2,7 @@
 # Hash protected paths so the agent cannot silently edit acceptance tests or drill code.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PROTECTED=(acceptance internal/controller internal/drills internal/evidence scripts/manifest.sh)
+PROTECTED=(acceptance internal/controller internal/drills internal/evidence internal/agent internal/scan internal/report internal/score cmd prompts scripts/manifest.sh)
 MANIFEST=".manifest.sha256"
 
 list() {
