@@ -85,7 +85,7 @@ func cmdEval(root string, args []string) error {
 	b.WriteString("| Arm | App | Injected | Caught | Missed | False alarms | Tokens/run |\n| --- | --- | --- | --- | --- | --- | --- |\n")
 	joinOr := func(xs []string) string {
 		if len(xs) == 0 {
-			return "—"
+			return "-"
 		}
 		return strings.Join(xs, ", ")
 	}

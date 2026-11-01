@@ -32,7 +32,7 @@ var refRe = regexp.MustCompile(`^(.+):(\d+)(?:-(\d+))?$`)
 // CheckCitations deterministically verifies that every finding cites real
 // file:line references inside the workspace and that observed findings cite
 // controller evidence. When validEvidence is non-nil, every cited
-// evidence_id must resolve to a real controller record — fabricated IDs
+// evidence_id must resolve to a real controller record - fabricated IDs
 // fail. No model call: this is the adversarial floor.
 func CheckCitations(workspace string, diagnosis json.RawMessage, validEvidence map[string]bool) ([]Citation, error) {
 	var d struct {

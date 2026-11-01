@@ -16,6 +16,7 @@ type schemaNode struct {
 	HasConst bool                   `json:"-"`
 	Minimum  *float64               `json:"minimum"`
 	Maximum  *float64               `json:"maximum"`
+	MinItems *int                   `json:"minItems"`
 }
 
 func (n *schemaNode) UnmarshalJSON(raw []byte) error {
@@ -130,9 +131,14 @@ func check(n *schemaNode, v any, path string, probs *[]string) {
 			}
 		}
 	}
-	if arr, ok := v.([]any); ok && n.Items != nil {
-		for i, el := range arr {
-			check(n.Items, el, fmt.Sprintf("%s[%d]", path, i), probs)
+	if arr, ok := v.([]any); ok {
+		if n.MinItems != nil && len(arr) < *n.MinItems {
+			*probs = append(*probs, fmt.Sprintf("%s: must contain at least %d item(s)", path, *n.MinItems))
+		}
+		if n.Items != nil {
+			for i, el := range arr {
+				check(n.Items, el, fmt.Sprintf("%s[%d]", path, i), probs)
+			}
 		}
 	}
 }

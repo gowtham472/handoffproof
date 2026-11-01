@@ -76,7 +76,46 @@ func LoadSpec(path string) (*Spec, error) {
 		// The cap covers reasoning and visible output combined (Meta docs).
 		s.MaxOutputTokens = 16000
 	}
+	if schema, ok := s.Schemas["diagnosis"]; ok {
+		// The report and verifier anchor every diagnosis to code. The spec
+		// declares source_references but does not require it, and models omit
+		// optional arrays; enforce at least one citation per finding here so
+		// a diagnosis cannot be saved with a blank Source in the report.
+		s.Schemas["diagnosis"] = requireSourceReferences(schema)
+	}
 	return s, nil
+}
+
+func requireSourceReferences(schema json.RawMessage) json.RawMessage {
+	var root map[string]any
+	if err := json.Unmarshal(schema, &root); err != nil {
+		return schema
+	}
+	props, _ := root["properties"].(map[string]any)
+	findings, _ := props["findings"].(map[string]any)
+	items, _ := findings["items"].(map[string]any)
+	if items == nil {
+		return schema
+	}
+	required, _ := items["required"].([]any)
+	found := false
+	for _, name := range required {
+		if name == "source_references" {
+			found = true
+		}
+	}
+	if !found {
+		items["required"] = append(required, "source_references")
+	}
+	itemProps, _ := items["properties"].(map[string]any)
+	if source, _ := itemProps["source_references"].(map[string]any); source != nil {
+		source["minItems"] = 1
+	}
+	raw, err := json.Marshal(root)
+	if err != nil {
+		return schema
+	}
+	return raw
 }
 
 func joinArr(m map[string]json.RawMessage, key string, b *strings.Builder) {

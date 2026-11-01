@@ -142,6 +142,47 @@ func TestRetryOn429(t *testing.T) {
 	}
 }
 
+func TestDiagnosisSchemaRequiresSourceReferences(t *testing.T) {
+	spec, err := LoadSpec(filepath.Join("..", "..", "prompts", "handoffproof_agent_prompt.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := spec.Schemas["diagnosis"]
+	if len(schema) == 0 {
+		t.Fatal("diagnosis schema missing")
+	}
+	base := map[string]any{
+		"finding_id": "F-1", "classification": "observed_failure", "workflow": "confirmation_email",
+		"evidence_ids": []any{"EV-1"}, "root_cause": "mail failed", "causal_chain": []any{"mail failed"},
+		"business_impact": "no confirmation", "alternatives_considered": []any{}, "confidence": 0.9,
+	}
+	for name, finding := range map[string]map[string]any{
+		"missing": base,
+		"empty": func() map[string]any {
+			f := map[string]any{}
+			for k, v := range base {
+				f[k] = v
+			}
+			f["source_references"] = []any{}
+			return f
+		}(),
+	} {
+		probs := ValidateSchema(schema, map[string]any{"status": "ok", "findings": []any{finding}})
+		joined := strings.Join(probs, "; ")
+		if !strings.Contains(joined, "source_references") {
+			t.Errorf("%s source_references passed diagnosis validation: %v", name, probs)
+		}
+	}
+	good := map[string]any{}
+	for k, v := range base {
+		good[k] = v
+	}
+	good["source_references"] = []any{"src/mail.ts:2-16"}
+	if probs := ValidateSchema(schema, map[string]any{"status": "ok", "findings": []any{good}}); len(probs) != 0 {
+		t.Errorf("diagnosis with source references flagged: %v", probs)
+	}
+}
+
 func TestValidatorAndRedact(t *testing.T) {
 	schema := json.RawMessage(`{"type":"object","required":["a"],"properties":{"a":{"type":"number","minimum":0,"maximum":0.9},"b":{"type":["string","null"]},"c":{"const":false}}}`)
 	if probs := ValidateSchema(schema, map[string]any{"a": 0.5, "b": nil, "c": false}); len(probs) != 0 {
