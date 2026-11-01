@@ -41,6 +41,10 @@ type Executor struct {
 	Evidence   EvidenceSource
 	Repairs    RepairSubmitter
 	OnSecurity func(kind, detail string)
+	// OnOwnershipRequest records a human ownership-confirmation request
+	// and returns its reference. It can never grant ownership: the tool
+	// only ever reports the request as pending a human decision.
+	OnOwnershipRequest func(resource string) (string, error)
 }
 
 // Execute runs one tool call and returns its JSON result text.
@@ -68,7 +72,7 @@ func (e *Executor) Execute(ctx context.Context, name string, argsJSON string) (s
 	case "read_ownership_declaration":
 		out, err = e.readOwnership()
 	case "request_ownership_confirmation":
-		out = map[string]any{"status": "confirmation_requested", "resource": str(args, "resource_name")}
+		out, err = e.requestOwnership(args)
 	case "request_drill":
 		out, err = e.requestDrill(ctx, args)
 	case "read_evidence":
@@ -293,6 +297,32 @@ func (e *Executor) readOwnership() (any, error) {
 		return map[string]any{"declaration": string(raw)}, nil
 	}
 	return map[string]any{"declaration": v}, nil
+}
+
+// requestOwnership records a pending human decision. It never confirms
+// ownership itself; without a recorder wired in, it says so plainly.
+func (e *Executor) requestOwnership(args map[string]any) (any, error) {
+	resource := str(args, "resource_name")
+	if resource == "" {
+		return nil, fmt.Errorf("resource_name is required")
+	}
+	if e.OnOwnershipRequest == nil {
+		return map[string]any{
+			"status":   "unavailable",
+			"resource": resource,
+			"note":     "no ownership-confirmation recorder is configured in this run; ask the operator to record the request manually",
+		}, nil
+	}
+	ref, err := e.OnOwnershipRequest(resource)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"status":      "pending_human_confirmation",
+		"resource":    resource,
+		"request_ref": ref,
+		"note":        "recorded for a human operator; ownership is NOT confirmed by this tool",
+	}, nil
 }
 
 func (e *Executor) requestDrill(ctx context.Context, args map[string]any) (any, error) {

@@ -130,6 +130,29 @@ func TestToolTurnsDoNotConsumeSchemaRetries(t *testing.T) {
 	}
 }
 
+func TestOwnershipConfirmationIsPendingOnly(t *testing.T) {
+	var recorded string
+	exec := &Executor{Workspace: t.TempDir(), OnOwnershipRequest: func(resource string) (string, error) {
+		recorded = resource
+		return "ownership-requests.jsonl:" + resource, nil
+	}}
+	out, err := exec.Execute(context.Background(), "request_ownership_confirmation", `{"resource_name":"mail-api-token"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recorded != "mail-api-token" || !strings.Contains(out, "pending_human_confirmation") || strings.Contains(out, `"status": "confirmed"`) {
+		t.Fatalf("recorded=%q out=%s", recorded, out)
+	}
+	bare := &Executor{Workspace: t.TempDir()}
+	out, err = bare.Execute(context.Background(), "request_ownership_confirmation", `{"resource_name":"mail-api-token"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, `"status": "unavailable"`) && !strings.Contains(out, `"status":"unavailable"`) {
+		t.Fatalf("unwired recorder must say unavailable, got %s", out)
+	}
+}
+
 func TestAPIErrorNoRetryOn401(t *testing.T) {
 	calls := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

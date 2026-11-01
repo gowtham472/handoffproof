@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gowtham472/handoffproof/internal/agent"
 	"github.com/gowtham472/handoffproof/internal/controller"
@@ -113,6 +114,27 @@ func agentRunner(root, repo string, ev *memEvidence, ctrl *controller.Controller
 		Repairs:   repairAdapter{ctrl: ctrl, tag: runTag},
 		OnSecurity: func(kind, detail string) {
 			fmt.Fprintf(os.Stderr, "security event: %s at %s (ignored, task unchanged)\n", kind, detail)
+		},
+		OnOwnershipRequest: func(resource string) (string, error) {
+			// Persist the request for a human operator. This records a
+			// pending decision only; it never confirms ownership.
+			rec := map[string]any{
+				"resource":   resource,
+				"status":     "pending_human_confirmation",
+				"created_at": time.Now().UTC().Format(time.RFC3339),
+			}
+			raw, _ := json.Marshal(rec)
+			path := filepath.Join(root, "evidence", "ownership-requests.jsonl")
+			f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+			if err != nil {
+				return "", err
+			}
+			defer f.Close()
+			if _, err := f.Write(append(raw, '\n')); err != nil {
+				return "", err
+			}
+			fmt.Fprintf(os.Stderr, "ownership confirmation requested for %s: recorded in %s for a human operator (not confirmed)\n", resource, path)
+			return "ownership-requests.jsonl:" + resource, nil
 		},
 	}
 	if p := os.Getenv("HANDOFFPROOF_OWNERSHIP_FILE"); p != "" {
@@ -444,6 +466,54 @@ func manifestHash(root string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// frozenManifestHash aggregates the frozen manifest entries (path plus
+// their frozen hashes) so it can be compared like-for-like with
+// currentManifestHash: equal means no protected file changed.
+func frozenManifestHash(root string) string {
+	raw, err := os.ReadFile(filepath.Join(root, ".manifest.sha256"))
+	if err != nil {
+		return "unavailable"
+	}
+	var lines []string
+	for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		lines = append(lines, fields[1]+":"+fields[0])
+	}
+	sort.Strings(lines)
+	sum := sha256.Sum256([]byte(strings.Join(lines, "\n")))
+	return hex.EncodeToString(sum[:])
+}
+
+// currentManifestHash recomputes the protected-file hash now: SHA-256
+// over the sorted "path:sha256" lines of the files the manifest lists.
+// It differs from frozenManifestHash whenever a protected file changed
+// after the freeze.
+func currentManifestHash(root string) string {
+	raw, err := os.ReadFile(filepath.Join(root, ".manifest.sha256"))
+	if err != nil {
+		return "unavailable"
+	}
+	var lines []string
+	for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(fields[1])))
+		if err != nil {
+			return "unavailable"
+		}
+		sum := sha256.Sum256(content)
+		lines = append(lines, fields[1]+":"+hex.EncodeToString(sum[:]))
+	}
+	sort.Strings(lines)
+	sum := sha256.Sum256([]byte(strings.Join(lines, "\n")))
+	return hex.EncodeToString(sum[:])
+}
+
 type diagnosisFile struct {
 	Findings []struct {
 		ID          string   `json:"finding_id"`
@@ -470,13 +540,21 @@ func cmdReport(root string, args []string) error {
 	if *evPath == "" {
 		return fmt.Errorf("--evidence is required")
 	}
-	recs, err := controller.ReadEvidence(*evPath)
+	return generateReport(root, *evPath, *diagPath, *outPath, true)
+}
+
+// generateReport builds the HTML report from an evidence file (and an
+// optional diagnosis file). Shared by the CLI and the console /report
+// handler so the served report is regenerated when evidence is newer.
+func generateReport(root, evPath, diagPath, outPath string, verbose bool) error {
+	recs, err := controller.ReadEvidence(evPath)
 	if err != nil {
 		return err
 	}
 	integrityOK := controller.New(root).ManifestVerify(context.Background()) == nil
-	d := report.Data{Evidence: recs, HashBefore: manifestHash(root), HashAfter: manifestHash(root), HashMatch: integrityOK}
+	d := report.Data{Evidence: recs, HashBefore: frozenManifestHash(root), HashAfter: currentManifestHash(root), HashMatch: integrityOK}
 	seen := map[string]*report.Check{}
+	latestBefore := map[string]time.Time{}
 	for _, r := range recs {
 		c, ok := seen[r.Workflow]
 		if !ok {
@@ -491,12 +569,38 @@ func cmdReport(root string, args []string) error {
 		}
 		c.BeforeID = r.ID
 		c.BeforePassed = &p
+		if r.CreatedAt.After(latestBefore[r.Workflow]) {
+			latestBefore[r.Workflow] = r.CreatedAt
+		}
+	}
+	// After: the latest later controller record for the same workflow in
+	// any other evidence run (for example a post-repair rerun). When no
+	// later run exists the column honestly stays "not run".
+	if matches, _ := filepath.Glob(filepath.Join(root, "evidence", "run-*.json")); len(matches) > 0 {
+		for _, m := range matches {
+			later, err := controller.ReadEvidence(m)
+			if err != nil {
+				continue
+			}
+			for _, r := range later {
+				c, ok := seen[r.Workflow]
+				if !ok || r.ID == c.BeforeID {
+					continue
+				}
+				if r.CreatedAt.After(latestBefore[r.Workflow]) {
+					p := r.Passed
+					c.AfterID = r.ID
+					c.AfterPassed = &p
+					latestBefore[r.Workflow] = r.CreatedAt
+				}
+			}
+		}
 	}
 	for _, c := range seen {
 		d.Checks = append(d.Checks, *c)
 	}
-	if *diagPath != "" {
-		raw, err := os.ReadFile(*diagPath)
+	if diagPath != "" {
+		raw, err := os.ReadFile(diagPath)
 		if err != nil {
 			return err
 		}
@@ -527,7 +631,7 @@ func cmdReport(root string, args []string) error {
 			}
 		}
 	}
-	f, err := os.Create(*outPath)
+	f, err := os.Create(outPath)
 	if err != nil {
 		return err
 	}
@@ -535,6 +639,8 @@ func cmdReport(root string, args []string) error {
 	if err := report.Render(f, d); err != nil {
 		return err
 	}
-	fmt.Println("report:", *outPath)
+	if verbose {
+		fmt.Println("report:", outPath)
+	}
 	return nil
 }

@@ -515,6 +515,38 @@ func TestShareLinks(t *testing.T) {
 	}
 }
 
+func TestShareLinksSurviveRestart(t *testing.T) {
+	sharePath := filepath.Join(t.TempDir(), "shares.json")
+	t.Setenv("HANDOFF_SHARE_FILE", sharePath)
+	s1 := testServer(t)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/share", strings.NewReader(`{}`))
+	req.AddCookie(&http.Cookie{Name: "hp_session", Value: s1.tokenHash})
+	req.Header.Set("X-HP-Request", "1")
+	s1.routes().ServeHTTP(rec, req)
+	var body struct {
+		Share string `json:"share"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || body.Share == "" {
+		t.Fatalf("mint: code=%d body=%s", rec.Code, rec.Body.String())
+	}
+	// A fresh server (restart) with the same share file still honors it.
+	s2 := testServer(t)
+	rec = httptest.NewRecorder()
+	s2.routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/summary?s="+body.Share, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("share after restart = %d, want 200", rec.Code)
+	}
+	// The store must not contain the raw share id.
+	raw, err := os.ReadFile(sharePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), body.Share) {
+		t.Fatal("share store must keep only the SHA-256 of the id")
+	}
+}
+
 func TestRateLimiter(t *testing.T) {
 	s := testServer(t)
 	req := httptest.NewRequest(http.MethodGet, "/api/summary", nil)

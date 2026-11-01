@@ -581,9 +581,9 @@
       <ul>
         <li>Four controller drills (baseline, withdrawn token, missing configuration, incomplete backup) run end to end in isolated sandboxes; the three fault drills fail exactly the assertion they were designed to break.</li>
         <li>The independent Playwright acceptance suite passes 4/4 on the healthy baseline and goes red when the token is withdrawn - then green again after a controller-applied repair and identical rerun.</li>
-        <li>Planted-fault scoreboard: 5/5 caught, each from controller evidence or the deterministic scan.</li>
-        <li>Current Handover Score: 84/100. The planted backup gap keeps it below 100 on purpose.</li>
-        <li>Benchmark harness with a held-out fixture application, reported in the results table.</li>
+        <li>Planted-fault scoreboard: <span id="about-scoreboard">loading live scoreboard…</span></li>
+        <li>Current Handover Score: <span id="about-score">loading live score…</span></li>
+        <li>Benchmark harness with a second fixture (author-written) application, reported in the results table.</li>
       </ul>
 
       <h2 id="scope">Scope</h2>
@@ -716,6 +716,8 @@ async function loadHandoverScore() {
   scoreState = s;
   const c = s.current.components || {};
   $('scorebig').textContent = s.current.total;
+  const aboutScore = $('about-score');
+  if (aboutScore) aboutScore.textContent = s.current.total + '/100, computed live from evidence, ground truth, and the static scan.';
   $('scorebasis').textContent = 'Basis: ' + (s.current.basis || 'controller evidence, ground truth, and static scan');
   const order = [['workflows', 'Workflows'], ['faults', 'Faults caught'], ['documentation', 'Documentation'], ['backup', 'Backup']];
   $('compbars').innerHTML = order.map(([k, l], i) =>
@@ -741,6 +743,8 @@ function faultGuide(f) {
 function initials(kind) { return String(kind || '?').split('_').map(w => w[0]).join('').slice(0, 2).toUpperCase(); }
 function renderFaults() {
   $('faultcount').textContent = faults.filter(f => f.status === 'caught').length + '/' + faults.length + ' caught';
+  const aboutBoard = $('about-scoreboard');
+  if (aboutBoard) aboutBoard.textContent = faults.filter(f => f.status === 'caught').length + '/' + faults.length + ' caught live from controller evidence or the deterministic scan.';
   $('faultlist').innerHTML = faults.map((f, i) =>
     '<button class="rowitem' + (i === faultSel ? ' sel' : '') + '" data-fault="' + i + '">' +
     '<span class="ava">' + esc(initials(f.kind)) + '</span>' +

@@ -57,7 +57,8 @@ type server struct {
 	rlMu         sync.Mutex
 	rlHits       map[string][]time.Time
 	shareMu      sync.Mutex
-	shares       map[string]time.Time // share id -> expiry; read-only, GET only
+	shares       map[string]time.Time // sha256(share id) -> expiry; read-only, GET only
+	sharesLoaded bool
 	slackMu      sync.Mutex
 	slackStates  map[string]slackOAuthState
 	githubMu     sync.Mutex
@@ -83,6 +84,47 @@ func (s *server) authorized(r *http.Request) bool {
 	return false
 }
 
+// shareFile is the persistent share store. Only SHA-256 hashes of share
+// ids are kept, in a 0600 file outside the repository by default, so
+// links survive server restarts without a credential list on disk.
+func (s *server) shareFile() string {
+	if p := os.Getenv("HANDOFF_SHARE_FILE"); p != "" {
+		return p
+	}
+	return filepath.Join(os.TempDir(), "handoffproof-shares.json")
+}
+
+func (s *server) loadSharesLocked() {
+	if s.sharesLoaded {
+		return
+	}
+	s.sharesLoaded = true
+	if s.shares == nil {
+		s.shares = map[string]time.Time{}
+	}
+	if raw, err := os.ReadFile(s.shareFile()); err == nil {
+		var stored map[string]time.Time
+		if json.Unmarshal(raw, &stored) == nil {
+			for id, exp := range stored {
+				if time.Now().Before(exp) {
+					s.shares[id] = exp
+				}
+			}
+		}
+	}
+}
+
+func (s *server) saveSharesLocked() {
+	raw, err := json.Marshal(s.shares)
+	if err != nil {
+		return
+	}
+	tmp := s.shareFile() + ".tmp"
+	if os.WriteFile(tmp, raw, 0o600) == nil {
+		_ = os.Rename(tmp, s.shareFile())
+	}
+}
+
 // shareAuthorized reports whether r carries a live read-only share id.
 // Share links grant GET only: writers (drills, Slack posts, new shares) stay
 // behind the console token.
@@ -93,15 +135,14 @@ func (s *server) shareAuthorized(r *http.Request) bool {
 	}
 	s.shareMu.Lock()
 	defer s.shareMu.Unlock()
-	if s.shares == nil {
-		return false
-	}
-	exp, ok := s.shares[id]
+	s.loadSharesLocked()
+	exp, ok := s.shares[hashToken(id)]
 	if !ok {
 		return false
 	}
 	if time.Now().After(exp) {
-		delete(s.shares, id)
+		delete(s.shares, hashToken(id))
+		s.saveSharesLocked()
 		return false
 	}
 	return true
@@ -110,18 +151,23 @@ func (s *server) shareAuthorized(r *http.Request) bool {
 func (s *server) pruneShares() {
 	s.shareMu.Lock()
 	defer s.shareMu.Unlock()
-	if s.shares == nil {
-		s.shares = map[string]time.Time{}
-		return
-	}
+	s.loadSharesLocked()
+	changed := false
+	defer func() {
+		if changed {
+			s.saveSharesLocked()
+		}
+	}()
 	for id, exp := range s.shares {
 		if time.Since(exp) > 0 {
 			delete(s.shares, id)
+			changed = true
 		}
 	}
 	if len(s.shares) > 50 {
 		for id := range s.shares {
 			delete(s.shares, id)
+			changed = true
 			if len(s.shares) <= 50 {
 				break
 			}
@@ -144,10 +190,9 @@ func (s *server) shareLink(w http.ResponseWriter, r *http.Request) {
 	}
 	id := hex.EncodeToString(buf)
 	s.shareMu.Lock()
-	if s.shares == nil {
-		s.shares = map[string]time.Time{}
-	}
-	s.shares[id] = time.Now().Add(24 * time.Hour)
+	s.loadSharesLocked()
+	s.shares[hashToken(id)] = time.Now().Add(24 * time.Hour)
+	s.saveSharesLocked()
 	s.shareMu.Unlock()
 	writeJSON(w, 200, map[string]string{"share": id, "expires": "24h", "scope": "read-only"})
 }
@@ -205,6 +250,36 @@ func (s *server) allRecords() []evidence.Record {
 	return out
 }
 
+// refreshReport regenerates the served report when the newest evidence
+// or diagnosis file is newer than the generated HTML (or it is missing),
+// so /report never silently serves stale results.
+func (s *server) refreshReport(reportPath string) {
+	reportInfo, reportErr := os.Stat(reportPath)
+	newest := time.Time{}
+	latestRun := ""
+	for _, f := range s.evidenceFiles() {
+		if info, err := os.Stat(f); err == nil && info.ModTime().After(newest) {
+			newest = info.ModTime()
+			latestRun = f
+		}
+	}
+	diagPath := ""
+	if matches, _ := filepath.Glob(filepath.Join(s.root, "evidence", "diagnosis-*.json")); len(matches) > 0 {
+		sort.Strings(matches)
+		diagPath = matches[len(matches)-1]
+		if info, err := os.Stat(diagPath); err == nil && info.ModTime().After(newest) {
+			newest = info.ModTime()
+		}
+	}
+	if latestRun == "" {
+		return
+	}
+	if reportErr == nil && !reportInfo.ModTime().Before(newest) {
+		return
+	}
+	_ = generateReport(s.root, latestRun, diagPath, reportPath, false)
+}
+
 func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(code)
@@ -222,7 +297,9 @@ func (s *server) routes() http.Handler {
 		_, _ = w.Write(consoleHTML)
 	})
 	mux.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filepath.Join(s.root, "evidence", "report.html"))
+		reportPath := filepath.Join(s.root, "evidence", "report.html")
+		s.refreshReport(reportPath)
+		http.ServeFile(w, r, reportPath)
 	})
 	mux.HandleFunc("/api/integrations/slack", s.slackStatus)
 	mux.HandleFunc("/api/integrations/slack/connect", s.slackConnect)
@@ -452,22 +529,58 @@ func (s *server) scoreboard(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, out)
 }
 
-// workflowDeps maps each workflow to the dependencies it needs, and each
-// dependency to the drill that would confirm the breakage (F3 what-if).
-var workflowDeps = map[string][]string{
-	"registration":       {"DATABASE_URL"},
-	"booking":            {"DATABASE_URL"},
-	"confirmation_email": {"DATABASE_URL", "MAIL_API_TOKEN", "MAIL_SINK_URL"},
-	"documents":          {"DATABASE_URL", "/data/uploads"},
-	"reminder_job":       {"SCHEDULER_TOKEN"},
-}
-
-var confirmDrill = map[string]string{
-	"MAIL_API_TOKEN":  "withdrawn_test_token",
-	"SCHEDULER_TOKEN": "missing_configuration",
-	"/data/uploads":   "incomplete_backup",
-	"DATABASE_URL":    "fresh_deployment_baseline",
-	"MAIL_SINK_URL":   "missing_configuration",
+// derivedWorkflowEdges computes what-if edges from the static scan and
+// controller evidence, never from a hand-written dependency map:
+//   - a scheduled job (scan) is affected when one of its env vars goes;
+//   - a workflow with failing records under missing_configuration is
+//     affected when an undocumented env var goes;
+//   - a workflow with records under incomplete_backup is affected when
+//     a storage path goes.
+func (s *server) derivedWorkflowEdges(rep scan.Report, remove string) []map[string]string {
+	var affected []map[string]string
+	add := func(workflow, via, confirm string) {
+		for _, a := range affected {
+			if a["workflow"] == workflow && a["via"] == via {
+				return
+			}
+		}
+		affected = append(affected, map[string]string{"workflow": workflow, "via": via, "confirm_with": confirm})
+	}
+	isStorage := false
+	for _, sp := range rep.StoragePaths {
+		if sp.Value == remove {
+			isStorage = true
+		}
+	}
+	if isStorage {
+		for _, rec := range s.allRecords() {
+			if rec.Drill == "incomplete_backup" {
+				add(rec.Workflow, remove, "incomplete_backup")
+			}
+		}
+		return affected
+	}
+	for _, job := range rep.Jobs {
+		for _, env := range job.EnvVars {
+			if env == remove {
+				add("scheduled job ("+job.Kind+")", remove, "missing_configuration")
+			}
+		}
+	}
+	undocumented := false
+	for _, name := range rep.UndocumentedEnvVars {
+		if name == remove {
+			undocumented = true
+		}
+	}
+	if undocumented {
+		for _, rec := range s.allRecords() {
+			if rec.Drill == "missing_configuration" {
+				add(rec.Workflow, remove, "missing_configuration")
+			}
+		}
+	}
+	return affected
 }
 
 func (s *server) whatif(w http.ResponseWriter, r *http.Request) {
@@ -498,15 +611,7 @@ func (s *server) whatif(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, 400, map[string]string{"error": "unknown dependency " + remove})
 			return
 		}
-		for wf, deps := range workflowDeps {
-			for _, d := range deps {
-				if d == remove {
-					affected = append(affected, map[string]string{
-						"workflow": wf, "via": d, "confirm_with": confirmDrill[d],
-					})
-				}
-			}
-		}
+		affected = s.derivedWorkflowEdges(rep, remove)
 		sort.Slice(affected, func(i, j int) bool { return affected[i]["workflow"] < affected[j]["workflow"] })
 	}
 	writeJSON(w, 200, map[string]any{"nodes": nodes, "remove": remove, "affected": affected})
