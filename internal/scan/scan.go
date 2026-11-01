@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/gowtham472/handoffproof/internal/secretpath"
 )
 
 // Ref points at one file and line.
@@ -62,7 +64,7 @@ var (
 	envKeyRe   = regexp.MustCompile(`^([A-Z][A-Z0-9_]*)=`)
 	storageRe  = regexp.MustCompile(`['"](/data/[^'"]*)['"]`)
 	hostRe     = regexp.MustCompile(`https?://[A-Za-z0-9._-]+(:[0-9]+)?`)
-	askRe      = regexp.MustCompile(`(?i)\bask ([A-Z][a-z]+)\b`)
+	askRe      = regexp.MustCompile(`\b[Aa]sk ([A-Z][a-z]+)\b`)
 	cronRe     = regexp.MustCompile(`cron|setInterval|setTimeout|node-schedule|agenda|bull`)
 	todoRe     = regexp.MustCompile(`TODO|FIXME`)
 	dbHintRe   = regexp.MustCompile(`DATABASE_URL|from 'pg'|from "pg"|require\(['"]pg['"]\)|new Pool|new Client`)
@@ -93,13 +95,25 @@ func Scan(root string) (Report, error) {
 		if err != nil {
 			return err
 		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil // never follow symlinks out of the scanned tree
+		}
 		if d.IsDir() {
 			if path != root && skipDir(d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
+		if secretpath.Denied(d.Name()) {
+			return nil // credential material is never read into a report
+		}
+		if d.Name() == "package-lock.json" || d.Name() == "yarn.lock" || d.Name() == "pnpm-lock.yaml" {
+			return nil // lockfiles: dependency metadata, not app configuration
+		}
 		if !scannable(d.Name()) {
+			return nil
+		}
+		if info, err := d.Info(); err != nil || info.Size() > 2<<20 {
 			return nil
 		}
 		raw, err := os.ReadFile(path)
