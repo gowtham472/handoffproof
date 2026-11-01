@@ -68,7 +68,15 @@ HandoffProof found in the imported source.
 - **Missing configuration**: enter an env var name. HandoffProof reruns
   without it; the dependent workflow is expected to fail.
 - **Incomplete backup**: requires a configured backup. HandoffProof runs
-  dump, recreates the stack, restores, and reruns the workflows.
+  dump, recreates the stack, restores, and reruns the workflows — then
+  starts fresh once more *without* restoring and reruns them again. The
+  fault is counted as detected only when a workflow that passed after the
+  real restore now fails; if no workflow reads restored data, the run
+  honestly reports “not detected”.
+
+HTTP steps may send custom `headers`; reference configured environment
+values with `${ENV_NAME}` so secrets stay out of the profile, for example
+`"headers": { "x-api-key": "${API_KEY}" }`.
 
 Results appear in **Evidence** with the application ID, profile version,
 source hash, and fault target. Use **Insights** and the full report as usual.
@@ -80,8 +88,9 @@ source hash, and fault target. Use **Insights** and the full report as usual.
   Control Room pages (Readiness, Rehearse, scoreboard) still describe the
   bundled demo application. BYOA runs write to the shared Evidence store.
 - HTTP steps do not capture values from one response for the next step yet.
-- The backup check reruns workflows after restore; it does not yet compare
-  per-file hashes for arbitrary stores.
+- The backup check compares workflow behaviour after restore versus after
+  a skipped restore; it does not yet compare per-file hashes for arbitrary
+  stores.
 
 ## Troubleshooting
 
