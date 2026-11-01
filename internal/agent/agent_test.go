@@ -95,6 +95,41 @@ func TestSchemaRetryThenFailClosed(t *testing.T) {
 	}
 }
 
+func TestToolTurnsDoNotConsumeSchemaRetries(t *testing.T) {
+	ws := t.TempDir()
+	if err := os.WriteFile(filepath.Join(ws, "a.txt"), []byte("hi"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("content-type", "application/json")
+		// Alternate one schema failure with one tool turn, three times,
+		// then answer validly. Tool turns must reset the schema-retry
+		// streak and schema failures must not eat the turn budget.
+		switch calls % 2 {
+		case 1:
+			_, _ = w.Write([]byte(`{"id":"r","model":"m","output":[{"type":"message","content":[{"type":"output_text","text":"{\"status\":\"nope\"}"}]}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`))
+		default:
+			if calls >= 8 {
+				_, _ = w.Write([]byte(`{"id":"r","model":"m","output":[{"type":"message","content":[{"type":"output_text","text":"{\"status\":\"ok\"}"}]}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"id":"r","model":"m","output":[{"type":"function_call","name":"list_files","arguments":"{\"path\":\".\"}","call_id":"c1"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`))
+		}
+	}))
+	defer srv.Close()
+	cfg := Config{APIKey: "k", ModelID: "m", BaseURL: srv.URL}
+	runner := NewRunner(cfg, testSpec(), &Executor{Workspace: ws})
+	res, err := runner.RunPhase(context.Background(), "intake_summary", "go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 8 || !strings.Contains(string(res.JSON), `"ok"`) {
+		t.Errorf("calls=%d res=%s", calls, res.JSON)
+	}
+}
+
 func TestAPIErrorNoRetryOn401(t *testing.T) {
 	calls := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

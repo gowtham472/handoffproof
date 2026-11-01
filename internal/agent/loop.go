@@ -63,9 +63,18 @@ type PhaseResult struct {
 var phaseCalls = 40  // max_tool_calls_per_phase
 var totalCalls = 200 // max_total_tool_calls_per_run
 
+// maxPhaseTurns caps model turns (responses) in one phase. Tool turns and
+// schema retries are counted separately: a schema failure never consumes
+// tool-turn budget, and a tool turn never consumes a schema retry.
+var maxPhaseTurns = 24
+
+// maxSchemaRetries caps consecutive schema-validation failures per phase.
+var maxSchemaRetries = 2
+
 // RunPhase runs one phase: model turns with tools until it returns JSON
 // validating against the phase schema. Schema failures are retried with
-// the validation error (up to 2), then the run fails closed.
+// the validation error (up to maxSchemaRetries in a row), then the run
+// fails closed. Turns are capped separately at maxPhaseTurns.
 func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult, error) {
 	schema, ok := r.Spec.Schemas[phase]
 	if !ok {
@@ -75,7 +84,13 @@ func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult
 	var prevID string
 	var usage UsageTotal
 	violations := ""
-	for attempt := 0; attempt < 8; attempt++ {
+	turns := 0
+	schemaRetries := 0
+	for {
+		turns++
+		if turns > maxPhaseTurns {
+			return nil, fmt.Errorf("phase %s: exceeded turn limit (%d)", phase, maxPhaseTurns)
+		}
 		req := responseRequest{
 			Model:           r.Cfg.ModelID,
 			Instructions:    r.Spec.SystemPrompt,
@@ -121,6 +136,7 @@ func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult
 			}
 			input = outs
 			violations = ""
+			schemaRetries = 0 // a tool turn breaks any schema-failure streak
 			continue
 		}
 		text := strings.TrimSpace(resp.Text())
@@ -135,11 +151,11 @@ func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult
 		} else {
 			return &PhaseResult{Phase: phase, JSON: json.RawMessage(text), Usage: usage}, nil
 		}
-		if attempt >= 2 {
+		schemaRetries++
+		if schemaRetries > maxSchemaRetries {
 			return nil, fmt.Errorf("phase %s: schema validation failed after retries: %s", phase, violations)
 		}
 	}
-	return nil, fmt.Errorf("phase %s: exceeded turn limit", phase)
 }
 
 func (r *Runner) spend(phase string) error {

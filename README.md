@@ -119,7 +119,7 @@ Drills run in a fixed order: `withdrawn_token`, then `missing_configuration`, an
 | Handover Score | Computes a deterministic readiness score and keeps its history for the trend view |
 | What-if simulator | Previews which workflows a dependency change would break, and which drill would confirm it |
 | Adversarial verifier | Checks diagnosis citations deterministically, then asks the model to propose corrections |
-| Benchmark | Scores map and diagnosis quality against ground truth, including a held-out fixture application |
+| Benchmark | Scores map and diagnosis quality against ground truth, including a second fixture (author-written) application |
 | HOP Connect | Connects Slack and GitHub so summaries and repositories flow into the rehearsal |
 | Bring Your Own App | Onboards any Docker Compose application through a declarative profile — see below |
 

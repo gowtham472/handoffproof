@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,6 +27,14 @@ func cmdEval(root string, args []string) error {
 		return err
 	}
 	recs := recordsFrom(root)
+	demoTruth, err := loadTruth(filepath.Join(root, "eval", "ground_truth.json"))
+	if err != nil {
+		return err
+	}
+	heldTruth, err := loadTruth(filepath.Join(root, "eval", "heldout_truth.json"))
+	if err != nil {
+		return err
+	}
 	type arm struct {
 		name    string
 		app     string
@@ -34,53 +43,52 @@ func cmdEval(root string, args []string) error {
 		missed  []string
 		falseAl int
 	}
-	// Demo app, static arm: catches F1, F3, F4. Misses F2, F5 by design.
-	demoStatic := arm{name: "static_scan_only", app: "demo-app", inject: 5}
+	split := func(truth []truthFault, caught func(truthFault) bool) arm {
+		a := arm{inject: len(truth)}
+		for _, f := range truth {
+			if caught(f) {
+				a.caught = append(a.caught, f.ID)
+			} else {
+				a.missed = append(a.missed, f.ID)
+			}
+		}
+		sort.Strings(a.caught)
+		sort.Strings(a.missed)
+		return a
+	}
+	// Demo app, static arm: every caught/missed verdict is computed from
+	// the scan output for that fault kind, never listed by hand.
+	demoStatic := split(demoTruth, func(f truthFault) bool { return staticSignal(demoScan, f.Kind) })
+	demoStatic.name, demoStatic.app = "static_scan_only", "demo-app"
 	demoStatic.falseAl = countFalseAlarms(demoScan, map[string]bool{"SCHEDULER_TOKEN": true, "ask Ravi": true})
-	for _, id := range []string{"F1-missing-config", "F3-incomplete-backup", "F4-handover-ask-ravi"} {
-		demoStatic.caught = append(demoStatic.caught, id)
-	}
-	demoStatic.missed = []string{"F2-silent-mail-failure", "F5-injection-comment"}
-	// Demo app, full arm: from controller evidence + live-scan security log.
-	full := arm{name: "full HandoffProof", app: "demo-app", inject: 5}
-	checks := map[string]bool{
-		"F1-missing-config":      hasFail(recs, "missing_configuration", "reminder_job"),
-		"F2-silent-mail-failure": hasFail(recs, "withdrawn_test_token", "confirmation_email"),
-		"F3-incomplete-backup":   hasFail(recs, "incomplete_backup", "documents"),
-		"F4-handover-ask-ravi":   hasAsk(demoScan, "ask Ravi"),
-		"F5-injection-comment":   logHas(root, "prompt_injection_attempt"),
-	}
-	for id, ok := range checks {
-		if ok {
-			full.caught = append(full.caught, id)
-		} else {
-			full.missed = append(full.missed, id)
+	// Demo app, drills arm: static scan plus controller drill evidence,
+	// with no model involved. The prompt-injection fault needs the agent's
+	// security event, so this arm cannot catch it.
+	drills := split(demoTruth, func(f truthFault) bool {
+		return staticSignal(demoScan, f.Kind) || drillSignal(recs, f.Kind)
+	})
+	drills.name, drills.app = "scan + drills, no model", "demo-app"
+	// Demo app, full arm: the drills arm plus the agent security event
+	// recorded when the model read the injected comment.
+	events := parseSecurityEvents(root)
+	full := split(demoTruth, func(f truthFault) bool {
+		if staticSignal(demoScan, f.Kind) || drillSignal(recs, f.Kind) {
+			return true
 		}
-	}
-	sort.Strings(full.caught)
-	sort.Strings(full.missed)
-	// Held-out fixture, static arm.
-	held := arm{name: "static_scan_only (held-out fixture)", app: "heldout-app", inject: 3}
-	heldOK := map[string]bool{
-		"H1-undocumented-key": contains(demoScanNames(heldScan), "API_KEY"),
-		"H2-empty-backup":     contains(heldScan.BackupGaps, "file_storage"),
-		"H3-ask-sam":          hasAsk(heldScan, "ask Sam"),
-	}
-	for id, ok := range heldOK {
-		if ok {
-			held.caught = append(held.caught, id)
-		} else {
-			held.missed = append(held.missed, id)
-		}
-	}
-	sort.Strings(held.caught)
-	sort.Strings(held.missed)
+		return f.Kind == "prompt_injection" && hasSecurityEvent(events, "prompt_injection_attempt")
+	})
+	full.name, full.app = "full HandoffProof", "demo-app"
+	// Second fixture (author-written), static arm: each expected_static
+	// signal in the truth file is checked against the scan output.
+	held := split(heldTruth, func(f truthFault) bool { return expectedStaticSignal(heldScan, f.ExpectedStatic) })
+	held.name, held.app = "static_scan_only (second fixture (author-written))", "heldout-app"
+	held.falseAl = countFalseAlarms(heldScan, map[string]bool{"API_KEY": true, "ask Sam": true})
 
 	commit := gitShort(root)
 	tokens := liveTokens(root)
 	var b strings.Builder
 	b.WriteString("# Results\n\n")
-	b.WriteString("Measured on the demo app and a held-out fixture. Misses are reported plainly; anything not run is labelled a target.\n\n")
+	b.WriteString("Measured on the demo app and a second fixture (author-written). Misses are reported plainly; anything not run is labelled a target.\n\n")
 	fmt.Fprintf(&b, "Date: %s · Commit: %s · Model: %s\n\n", time.Now().Format("2006-01-02"), commit, os.Getenv("META_MODEL_ID"))
 	b.WriteString("| Arm | App | Injected | Caught | Missed | False alarms | Tokens/run |\n| --- | --- | --- | --- | --- | --- | --- |\n")
 	joinOr := func(xs []string) string {
@@ -89,7 +97,7 @@ func cmdEval(root string, args []string) error {
 		}
 		return strings.Join(xs, ", ")
 	}
-	for _, a := range []arm{demoStatic, full, held} {
+	for _, a := range []arm{demoStatic, drills, full, held} {
 		tok := "0 (deterministic)"
 		if a.name == "full HandoffProof" {
 			tok = tokens
@@ -183,14 +191,114 @@ func countFalseAlarms(rep scan.Report, allowed map[string]bool) int {
 	return n
 }
 
-func logHas(root, needle string) bool {
+// truthFault is one planted fault from an eval truth file.
+type truthFault struct {
+	ID             string `json:"id"`
+	Kind           string `json:"kind"`
+	ExpectedStatic string `json:"expected_static"`
+}
+
+func loadTruth(path string) ([]truthFault, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var doc struct {
+		Planted []truthFault `json:"planted_faults"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+	if len(doc.Planted) == 0 {
+		return nil, fmt.Errorf("no planted faults in %s", path)
+	}
+	return doc.Planted, nil
+}
+
+// staticSignal reports whether the static scan alone surfaces a fault of
+// this kind. Kinds with no static signature honestly return false.
+func staticSignal(rep scan.Report, kind string) bool {
+	switch kind {
+	case "missing_configuration":
+		return len(rep.UndocumentedEnvVars) > 0
+	case "incomplete_backup":
+		return len(rep.BackupGaps) > 0
+	case "documentation_gap":
+		return len(rep.AskPhrases) > 0
+	}
+	return false
+}
+
+// drillSignal reports whether controller drill evidence (no model) shows
+// the workflow this fault kind breaks actually failing.
+func drillSignal(recs []struct {
+	Drill    string
+	Workflow string
+	Passed   bool
+}, kind string) bool {
+	switch kind {
+	case "missing_configuration":
+		return hasFail(recs, "missing_configuration", "reminder_job")
+	case "silent_failure":
+		return hasFail(recs, "withdrawn_test_token", "confirmation_email")
+	case "incomplete_backup":
+		return hasFail(recs, "incomplete_backup", "documents")
+	}
+	return false
+}
+
+// expectedStaticSignal checks one truth-file signal such as
+// "undocumented_env:API_KEY" against the scan output.
+func expectedStaticSignal(rep scan.Report, expected string) bool {
+	kind, value, ok := strings.Cut(expected, ":")
+	if !ok {
+		return false
+	}
+	switch kind {
+	case "undocumented_env":
+		return contains(rep.UndocumentedEnvVars, value)
+	case "backup_gap":
+		return contains(rep.BackupGaps, value)
+	case "ask_phrase":
+		return hasAsk(rep, value)
+	}
+	return false
+}
+
+// securityEvent is one structured agent security event parsed from a run
+// log line of the form "security event: <kind> at <path> (...)".
+type securityEvent struct {
+	Kind string
+	Path string
+}
+
+var securityEventRe = regexp.MustCompile(`security event: ([a-z0-9_]+) at (\S+)`)
+
+func parseSecurityEvents(root string) []securityEvent {
+	var out []securityEvent
 	for _, pat := range []string{"evidence/*.err", "evidence/*.log"} {
 		matches, _ := filepath.Glob(filepath.Join(root, pat))
 		for _, m := range matches {
 			b, err := os.ReadFile(m)
-			if err == nil && strings.Contains(strings.ReplaceAll(string(b), "\x00", ""), needle) {
-				return true
+			if err != nil {
+				continue
 			}
+			// PowerShell redirection writes UTF-16; strip NULs first.
+			text := strings.ReplaceAll(string(b), "\x00", "")
+			for _, line := range strings.Split(text, "\n") {
+				if mm := securityEventRe.FindStringSubmatch(line); mm != nil {
+					out = append(out, securityEvent{Kind: mm[1], Path: mm[2]})
+				}
+			}
+		}
+	}
+	return out
+}
+
+func hasSecurityEvent(events []securityEvent, kind string) bool {
+	for _, e := range events {
+		if e.Kind == kind && e.Path != "" {
+			return true
 		}
 	}
 	return false

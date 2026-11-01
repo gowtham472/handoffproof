@@ -3,6 +3,8 @@ name: handover-gate
 # someone other than its author. Runs the quality gate, the independent
 # acceptance suite on a healthy baseline, and one controller drill.
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
