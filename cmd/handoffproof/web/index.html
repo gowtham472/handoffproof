@@ -4,156 +4,800 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HandoffProof Control Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  :root { color-scheme: dark; }
+  /* IBM Carbon-inspired system + Qiskit page structure (fetched from ibm.com and ibm.com/quantum/qiskit) */
+  :root {
+    --bg: #f4f4f4; --layer: #ffffff; --layer-2: #e0e0e0; --layer-3: #161616;
+    --text: #161616; --text-2: #525252; --text-3: #6f6f6f;
+    --blue: #0f62fe; --blue-hover: #0353e9; --purple: #6929c4; --purple-2: #8a3ffc;
+    --border: #e0e0e0; --border-strong: #8d8d8d;
+    --tag-green-bg: #defbe6; --tag-green: #0e6027;
+    --tag-red-bg: #fff1f1; --tag-red: #a2191f;
+    --tag-warm-bg: #fdf6dd; --tag-warm: #8e6a00;
+    --tag-gray-bg: #e0e0e0; --tag-gray: #393939;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; background: #10151c; color: #e6ebf0; font-family: "Segoe UI", system-ui, sans-serif; line-height: 1.5; }
-  header { display: flex; flex-wrap: wrap; gap: 1rem; align-items: baseline; justify-content: space-between; padding: 1.1rem 1.5rem; border-bottom: 2px solid #e8a33d; background: #131a23; }
-  h1 { font-size: 1.45rem; margin: 0; letter-spacing: .01em; }
-  h1 .sub { color: #93a1b0; font-size: .95rem; font-weight: 400; margin-left: .6rem; }
-  h2 { font-size: 1.05rem; margin: 0 0 .7rem; color: #f2c879; }
-  main { padding: 1.2rem 1.5rem 2rem; max-width: 1180px; margin: 0 auto; }
-  .kpis { display: flex; flex-wrap: wrap; gap: .8rem; margin-bottom: 1.2rem; }
-  .kpi { background: #171e27; border: 1px solid #2a3542; border-radius: 6px; padding: .7rem 1rem; min-width: 150px; }
-  .kpi b { display: block; font-size: 1.5rem; font-family: ui-monospace, Consolas, monospace; }
-  .kpi span { color: #93a1b0; font-size: .85rem; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
-  .panel { background: #171e27; border: 1px solid #2a3542; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
-  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
-  th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid #2a3542; vertical-align: top; }
-  th { color: #93a1b0; font-weight: 600; }
-  .mono { font-family: ui-monospace, Consolas, monospace; font-size: .85em; }
-  .badge { display: inline-block; padding: .08rem .55rem; border-radius: 999px; font-size: .8rem; font-weight: 700; }
-  .pass { background: #14532d; color: #7ee2ae; } .fail { background: #5f1d16; color: #ff9d8f; }
-  .caught { background: #14532d; color: #7ee2ae; } .missed { background: #5f1d16; color: #ff9d8f; }
-  .risk { background: #5a3b0c; color: #f2c879; } .untested { background: #334155; color: #b6c2d1; }
-  button { background: #e8a33d; color: #161006; border: 0; border-radius: 5px; padding: .5rem .9rem; font-weight: 700; cursor: pointer; margin: 0 .4rem .4rem 0; }
-  button:disabled { opacity: .45; cursor: wait; }
-  button.ghost { background: #232e3b; color: #e6ebf0; border: 1px solid #3b4a5c; }
-  select { background: #232e3b; color: #e6ebf0; border: 1px solid #3b4a5c; border-radius: 5px; padding: .45rem; }
-  .card { border: 1px solid #2a3542; border-radius: 6px; padding: .8rem; margin-bottom: .7rem; background: #131a23; }
-  .muted { color: #93a1b0; } .small { font-size: .88rem; }
-  footer { color: #93a1b0; border-top: 1px solid #2a3542; padding-top: .8rem; margin-top: 1rem; }
-  a { color: #f2c879; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; line-height: 1.5; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .82em; }
+  .ic { width: 18px; height: 18px; fill: currentColor; flex: none; vertical-align: -3px; }
+  .brand-ic { width: 24px; height: 24px; flex: none; vertical-align: -6px; }
+  .brand-ic.sm { width: 20px; height: 20px; vertical-align: -5px; }
+  [hidden] { display: none !important; }
+  a { color: var(--blue); }
+
+  /* Fixed shell, after the QSDTS reference: 48px header + 256px sidenav */
+  .header { position: fixed; inset: 0 0 auto 0; height: 48px; z-index: 50; display: flex; align-items: center; background: var(--layer); border-bottom: 1px solid var(--border); }
+  .header-menu { display: none; width: 48px; height: 48px; border: 0; background: none; color: var(--text); cursor: pointer; align-items: center; justify-content: center; }
+  .header-name { display: flex; align-items: center; height: 100%; padding: 0 32px 0 16px; color: var(--text); font-size: .95rem; white-space: nowrap; text-decoration: none; }
+  .header-name b { font-weight: 700; margin-right: 7px; }
+  .header-name span { color: var(--text-2); }
+  .header-actions { margin-left: auto; display: flex; height: 100%; align-items: center; }
+  .header-status { display: flex; align-items: center; gap: 8px; padding: 0 16px; font-size: .8rem; color: var(--text-2); white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #24a148; flex: none; }
+  .sidenav { position: fixed; top: 48px; bottom: 0; left: 0; width: 256px; z-index: 40; overflow-y: auto; background: var(--layer); border-right: 1px solid var(--border); padding: 16px 0; }
+  .nav-group { padding: 16px 16px 8px; font-size: .75rem; letter-spacing: .32px; color: var(--text-3); }
+  .nav-group:first-child { padding-top: 0; }
+  .nav-link { display: flex; align-items: center; gap: 12px; height: 36px; width: 100%; padding: 0 16px; background: none; border: 0; color: var(--text-2); font: inherit; font-size: .92rem; font-weight: 600; position: relative; cursor: pointer; text-align: left; transition: background-color .15s ease, color .15s ease; }
+  .nav-link .num { font-family: "IBM Plex Mono", monospace; font-size: .72rem; font-weight: 400; color: var(--text-3); width: 18px; }
+  .nav-link:hover { background: #e8e8e8; color: var(--text); }
+  .nav-link.active { background: var(--layer-2); color: var(--text); }
+  .nav-link.active::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--blue); }
+  .nav-link.active .num { color: var(--blue); }
+  .sidenav-foot { margin-top: 24px; padding: 16px; border-top: 1px solid var(--border); font-size: .78rem; color: var(--text-3); }
+  .sidenav-foot div { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+  .sidenav-foot .mono { color: var(--text-2); }
+  .content { margin-left: 256px; padding-top: 48px; min-height: 100vh; min-width: 0; }
+  .pagewrap { max-width: 1312px; padding: 32px 32px 64px; }
+  @media (max-width: 1056px) {
+    .header-menu { display: flex; }
+    .sidenav { transform: translateX(-100%); transition: transform .2s ease; }
+    body.nav-open .sidenav { transform: none; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+    .content { margin-left: 0; }
+  }
+  @media (max-width: 672px) { .pagewrap { padding: 24px 16px 48px; } .header-name span { display: none; } }
+  .page { display: none; } .page.active { display: block; animation: pagein .25s ease both; }
+  @keyframes pagein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* Qiskit leadspace (dark hero) */
+  .leadspace { background: var(--layer-3); color: #fff; padding: 44px 40px 36px; position: relative; overflow: hidden; }
+  .leadspace::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(90deg, var(--purple) 0%, var(--purple-2) 45%, var(--blue) 100%); }
+  .leadspace .eyebrow { color: #a6c8ff; font-size: .85rem; margin: 0 0 12px; }
+  .leadspace h1 { font-size: 2.5rem; font-weight: 300; letter-spacing: -.01em; line-height: 1.15; margin: 0 0 14px; max-width: 640px; }
+  .leadspace h1 strong { font-weight: 600; }
+  .leadspace p.sub { color: #c6c6c6; max-width: 560px; margin: 0 0 22px; font-size: 1.05rem; }
+  .btn { display: inline-flex; align-items: center; gap: 9px; background: var(--blue); color: #fff; border: 1px solid var(--blue); padding: 12px 20px; font: inherit; font-weight: 600; font-size: .95rem; cursor: pointer; text-decoration: none; transition: background-color .15s ease; }
+  .btn:hover { background: var(--blue-hover); }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .btn.ghost { background: transparent; color: var(--blue); }
+  .btn.ghost:hover { background: #e8efff; }
+  .btn.darkghost { background: transparent; color: #fff; border-color: #fff; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; background: var(--layer); padding: 26px 28px; border-bottom: 1px solid var(--border); }
+  @media (max-width: 900px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat .v { font-size: 2.1rem; font-weight: 300; letter-spacing: -.02em; }
+  .stat .l { color: var(--text-2); font-size: .88rem; margin-top: 2px; }
+  .stat { border-top: 2px solid var(--layer-3); padding-top: 10px; }
+  .stat.purple { border-top-color: var(--purple); }
+
+  /* Carbon tiles, tables, tags */
+  .tile { background: var(--layer); padding: 24px; }
+  .tile h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 12px; display: flex; align-items: center; gap: 9px; }
+  .tile h2 .ic { color: var(--blue); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; background: var(--layer); }
+  th { background: var(--bg); color: var(--text); font-weight: 600; font-size: .85rem; text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border-strong); }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .tag { display: inline-block; padding: .18rem .6rem; border-radius: 999px; font-size: .76rem; font-weight: 600; }
+  .pass, .caught { background: var(--tag-green-bg); color: var(--tag-green); }
+  .fail, .missed { background: var(--tag-red-bg); color: var(--tag-red); }
+  .risk { background: var(--tag-warm-bg); color: var(--tag-warm); }
+  .untested { background: var(--tag-gray-bg); color: var(--tag-gray); }
+  .muted { color: var(--text-2); } .small { font-size: .88rem; }
+  select, input[type="search"] { background: var(--layer); color: var(--text); border: 1px solid var(--border-strong); padding: 10px 12px; font: inherit; border-radius: 0; }
+  select:focus, input[type="search"]:focus, button:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+
+  /* score block */
+  .scorewrap { display: grid; grid-template-columns: .9fr 1.1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 900px) { .scorewrap { grid-template-columns: 1fr; } }
+  .scorebig { font-size: 4rem; font-weight: 300; line-height: 1; color: var(--purple); letter-spacing: -.03em; }
+  .scorebig small { font-size: 1.1rem; color: var(--text-2); font-weight: 400; }
+  .compbar { margin: 10px 0; }
+  .compbar .lbl { display: flex; justify-content: space-between; font-size: .86rem; color: var(--text-2); }
+  .compbar .track { height: 8px; background: var(--layer-2); margin-top: 4px; }
+  .compbar .fill { height: 100%; background: var(--blue); transition: width .6s ease; }
+  .compbar .fill.purple { background: var(--purple); }
+  .trend { display: flex; align-items: flex-end; gap: 4px; height: 46px; margin-top: 12px; }
+  .trend div { background: var(--purple); width: 16px; min-height: 4px; }
+
+  /* master-detail (Carbon list + dark detail tile) */
+  .masterdetail { display: grid; grid-template-columns: 360px 1fr; gap: 16px; margin-top: 16px; align-items: stretch; }
+  .masterdetail > .tile { display: flex; flex-direction: column; }
+  .masterdetail > .tile > p:last-child { margin-top: auto; }
+  @media (max-width: 900px) { .masterdetail { grid-template-columns: 1fr; } }
+  .rowitem { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--border); padding: 13px 14px; font: inherit; color: inherit; cursor: pointer; transition: background-color .15s ease; }
+  .rowitem:hover { background: var(--bg); }
+  .rowitem.sel { background: var(--layer-3); color: #fff; }
+  .rowitem .ava { width: 34px; height: 34px; border-radius: 50%; background: var(--layer-2); color: var(--text-2); display: grid; place-items: center; font-weight: 700; font-size: .7rem; flex: none; }
+  .rowitem.sel .ava { background: var(--purple); color: #fff; }
+  .rowitem .mid { flex: 1; min-width: 0; }
+  .rowitem .mid .t { font-weight: 600; font-size: .9rem; }
+  .rowitem .mid .s { color: var(--text-3); font-size: .78rem; }
+  .rowitem.sel .mid .s { color: #a8a8a8; }
+  .detail { background: var(--layer-3); color: #f4f4f4; padding: 24px; }
+  .detail .dlbl { color: #a6c8ff; font-size: .8rem; }
+  .detail .dtitle { font-size: 1.6rem; font-weight: 600; margin: 4px 0 12px; letter-spacing: -.01em; }
+  .detail .kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0; }
+  .detail .kv .cell { background: #262626; padding: 12px 14px; }
+  .detail .kv .cell .k { color: #a8a8a8; font-size: .74rem; }
+  .detail .kv .cell .v { font-weight: 600; margin-top: 3px; }
+  .detail .muted { color: #a8a8a8; }
+  .fault-hero { display: grid; grid-template-columns: minmax(0,1fr) 190px; gap: 20px; align-items: start; }
+  .fault-art { background: var(--layer); padding: 14px; }
+  .fault-art img { width: 100%; height: auto; display: block; }
+  .fault-guide { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+  .fault-guide .cell { background: #262626; padding: 14px 16px; }
+  .fault-guide .cell .k { color: #a6c8ff; font-size: .78rem; font-weight: 600; margin-bottom: 6px; }
+  .fault-guide .cell p { color: #e0e0e0; font-size: .9rem; margin: 0; }
+  .fault-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  @media (max-width: 760px) { .fault-hero, .fault-guide { grid-template-columns: 1fr; } .fault-art { max-width: 240px; } }
+
+  /* drill tiles */
+  .drillgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 1100px) { .drillgrid { grid-template-columns: repeat(2, 1fr); } }
+  .drillcard { background: var(--layer); border: 1px solid transparent; padding: 20px; cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; min-height: 168px; position: relative; transition: background-color .15s ease, border-color .15s ease; }
+  .drillcard:hover { background: #e8efff; }
+  .drillcard.sel { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); }
+  .drillcard .ic.big { width: 26px; height: 26px; color: var(--blue); margin-bottom: 14px; }
+  .drillcard b { display: block; font-size: 1rem; margin-bottom: 6px; }
+  .drillcard span { color: var(--text-2); font-size: .86rem; }
+  .drillcard .go { position: absolute; right: 16px; bottom: 14px; color: var(--blue); }
+  .finding { border: 1px solid var(--border); border-left: 3px solid var(--blue); padding: 14px 16px; margin-bottom: 12px; background: var(--layer); }
+  footer { border-top: 1px solid var(--border); margin-top: 28px; padding-top: 16px; color: var(--text-2); font-size: .88rem; display: flex; gap: 9px; align-items: center; }
+  /* Carbon modal for the Full report share flow. The overlay is a body-level
+     viewport layer, never positioned from a page/report container. */
+  body.modal-open { overflow: hidden; }
+  .share-backdrop { position: fixed; inset: 0; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000; width: 100vw; height: 100vh; height: 100dvh; display: grid; place-items: center; overflow: auto; padding: 24px; background: rgba(22,22,22,.56); }
+  .share-backdrop[hidden] { display: none !important; }
+  .share-dialog { position: relative; width: min(560px, calc(100vw - 48px)); max-height: calc(100dvh - 48px); overflow: auto; margin: auto; background: var(--layer); padding: 32px; box-shadow: 0 12px 32px rgba(0,0,0,.28); animation: pagein .2s ease both; }
+  .share-dialog::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--blue); }
+  .share-dialog h2 { font-size: 1.55rem; font-weight: 400; margin: 0 48px 8px 0; }
+  .share-close-icon { position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; display: grid; place-items: center; border: 0; background: transparent; color: var(--text); cursor: pointer; }
+  .share-close-icon:hover { background: var(--bg); }
+  .share-opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; text-align: left; background: var(--bg); border: 1px solid transparent; padding: 14px 16px; margin-top: 10px; font: inherit; color: inherit; cursor: pointer; transition: background-color .15s ease, border-color .15s ease; }
+  .share-opt > span { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .share-opt:hover { background: #e8efff; }
+  .share-opt[disabled] { opacity: .5; cursor: wait; }
+  .share-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; }
+  .share-footer .muted.small { margin-top: 0; }
+  .share-footer [hidden] { display: none !important; }
+  /* Carbon-style table pagination */
+  .pagination { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; min-height: 48px; padding: 8px 12px; background: var(--layer); border-top: 1px solid var(--border-strong); }
+  .pagination-group, .pagination-nav, .pagination-pages { display: flex; align-items: center; gap: 8px; }
+  .pagination-group { color: var(--text-2); font-size: .86rem; }
+  .pagination select { min-height: 32px; padding: 5px 8px; }
+  .pagination-nav { margin-left: auto; }
+  .pagination-pages { flex-wrap: wrap; }
+  .page-btn { min-width: 32px; height: 32px; padding: 0 8px; border: 1px solid transparent; background: transparent; color: var(--blue); font: inherit; font-size: .88rem; cursor: pointer; }
+  .page-btn:hover:not(:disabled) { background: #e8efff; }
+  .page-btn.active { background: var(--layer-3); color: #fff; }
+  .page-btn:disabled { color: var(--text-3); cursor: not-allowed; opacity: .55; }
+  .pagination-ellipsis { color: var(--text-3); padding: 0 2px; }
+  /* About page prose (QSDTS about structure) */
+  .prose { max-width: 780px; }
+  .prose h2 { font-size: 1.35rem; font-weight: 600; margin: 36px 0 10px; }
+  .prose h2:first-child { margin-top: 0; }
+  .prose h3 { font-size: 1rem; font-weight: 600; margin: 20px 0 8px; }
+  .prose p { margin: 0 0 12px; }
+  .prose ul { margin: 0 0 12px; padding-left: 20px; }
+  .prose li { margin-bottom: 6px; }
+  .callout { background: var(--layer); border-left: 3px solid var(--purple); padding: 16px 18px; margin: 16px 0; }
+  .pagetitle { font-size: 2rem; font-weight: 300; margin: 0; letter-spacing: -.01em; }
+  .pagedesc { color: var(--text-2); font-size: 1.05rem; margin: 8px 0 4px; max-width: 720px; }
+  /* QSDTS doc layout: body + sticky topic rail */
+  .doc { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 48px; align-items: start; }
+  @media (max-width: 1056px) { .doc { grid-template-columns: 1fr; } .toc { display: none; } }
+  .doc-body { max-width: 760px; }
+  .doc-body h2 { font-size: 1.55rem; line-height: 1.3; font-weight: 400; margin: 44px 0 14px; padding-top: 22px; border-top: 1px solid var(--border); scroll-margin-top: 72px; }
+  .doc-body h2:first-child { margin-top: 6px; padding-top: 0; border-top: 0; }
+  .toc { position: sticky; top: 72px; font-size: .9rem; }
+  .toc b { display: block; font-size: .75rem; color: var(--text-2); font-weight: 600; margin-bottom: 8px; }
+  .toc a { display: block; padding: 6px 0 6px 16px; border-left: 2px solid var(--border); color: var(--text-2); text-decoration: none; transition: color .15s ease, border-color .15s ease; }
+  .toc a:hover { color: var(--text); border-left-color: var(--border-strong); }
+  .toc a.on { color: var(--text); font-weight: 600; border-left-color: var(--blue); }
+  /* flat illustrations (unDraw/Storyset style, IBM palette) */
+  .leadgrid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 24px; align-items: center; }
+  @media (max-width: 900px) { .leadgrid { grid-template-columns: 1fr; } .illo { display: none; } }
+  .illo { width: 100%; max-width: 330px; justify-self: end; }
+  .illo-sm { width: 120px; flex: none; }
+  @media (max-width: 700px) { .illo-sm { display: none; } }
+  /* Actual-user app structure: consistent page heads, onboarding, settings */
+  .page-head { background: var(--layer); padding: 28px; margin-bottom: 16px; display: grid; grid-template-columns: minmax(0,1fr) 180px; gap: 28px; align-items: center; }
+  .page-head h1 { font-size: 2rem; font-weight: 300; margin: 0; letter-spacing: -.01em; }
+  .page-head h1 strong { font-weight: 600; }
+  .page-head p { color: var(--text-2); margin: 8px 0 0; max-width: 700px; }
+  .page-head .illo-sm { width: 180px; justify-self: end; }
+  @media (max-width: 700px) { .page-head { grid-template-columns: 1fr; padding: 22px; } }
+  .header-link { display: inline-flex; align-items: center; gap: 8px; height: 100%; padding: 0 16px; color: var(--text-2); font-size: .88rem; font-weight: 600; text-decoration: none; border-left: 1px solid var(--border); }
+  .header-link:hover { background: var(--bg); color: var(--text); }
+  .steps { background: var(--layer); }
+  .step { display: grid; grid-template-columns: 48px minmax(0,1fr) auto; gap: 16px; align-items: center; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .step:last-child { border-bottom: 0; }
+  .step-num { width: 36px; height: 36px; border: 1px solid var(--border-strong); display: grid; place-items: center; font-family: "IBM Plex Mono", monospace; font-size: .85rem; color: var(--text-2); }
+  .step.done .step-num { background: var(--layer-3); border-color: var(--layer-3); color: #fff; }
+  .step h3 { font-size: 1rem; margin: 0 0 3px; }
+  .step p { color: var(--text-2); font-size: .9rem; margin: 0; }
+  .step-state { color: var(--text-2); font-size: .82rem; margin-top: 5px; }
+  @media (max-width: 700px) { .step { grid-template-columns: 40px minmax(0,1fr); } .step .btn { grid-column: 2; justify-self: start; } }
+  .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 1000px) { .settings-grid { grid-template-columns: 1fr; } }
+  .setting-row { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; padding: 13px 0; border-bottom: 1px solid var(--border); }
+  .setting-row:last-child { border-bottom: 0; }
+  .setting-row .k { color: var(--text-2); font-size: .84rem; }
+  .setting-row .v { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+  .field { display: grid; gap: 6px; margin: 12px 0; }
+  .field label { font-size: .86rem; font-weight: 600; }
+  .field select, .field input { width: 100%; background: var(--layer); color: var(--text); border: 1px solid var(--border-strong); padding: 10px 12px; font: inherit; border-radius: 0; }
+  .field .hint { color: var(--text-2); font-size: .82rem; }
+  .codebox { background: var(--bg); padding: 12px 14px; font-family: "IBM Plex Mono", monospace; font-size: .8rem; overflow-wrap: anywhere; margin: 10px 0; }
+  .btnrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+  /* Insights workspace */
+  .insights-layout { display: grid; grid-template-columns: minmax(0,2fr) minmax(300px,1fr); gap: 16px; align-items: start; }
+  @media (max-width: 1100px) { .insights-layout { grid-template-columns: 1fr; } }
+  .insights-rail { display: grid; gap: 16px; position: sticky; top: 64px; }
+  @media (max-width: 1100px) { .insights-rail { position: static; } }
+  .segmented { display: flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--border-strong); width: fit-content; max-width: 100%; }
+  .segmented button { border: 0; border-right: 1px solid var(--border-strong); background: var(--layer); color: var(--text-2); padding: 9px 14px; font: inherit; font-size: .88rem; font-weight: 600; cursor: pointer; }
+  .segmented button:last-child { border-right: 0; }
+  .segmented button.active { background: var(--layer-3); color: #fff; }
+  .insight-toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .insight-finding { border-top: 1px solid var(--border); padding: 20px 0; }
+  .insight-finding:first-child { border-top: 0; padding-top: 4px; }
+  .insight-finding-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .insight-finding-head h3 { font-size: 1rem; margin: 0; overflow-wrap: anywhere; }
+  .insight-meta { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin: 14px 0; }
+  .meta-cell { background: var(--bg); padding: 12px 14px; min-width: 0; }
+  .meta-cell .k { color: var(--text-2); font-size: .74rem; margin-bottom: 3px; }
+  .meta-cell .v { font-weight: 600; font-size: .9rem; overflow-wrap: anywhere; }
+  @media (max-width: 700px) { .insight-meta { grid-template-columns: 1fr; } }
+  .confidence-track { height: 6px; background: var(--border); margin-top: 7px; }
+  .confidence-fill { height: 100%; background: var(--blue); }
+  .insight-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 700px) { .insight-columns { grid-template-columns: 1fr; } }
+  .insight-columns h4 { font-size: .88rem; margin: 0 0 5px; }
+  .insight-columns p { color: var(--text-2); margin: 0; }
+  .citation-list { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
+  .citation-list button { border: 0; background: var(--bg); color: var(--blue); font-family: "IBM Plex Mono", monospace; font-size: .78rem; padding: 5px 8px; cursor: pointer; }
+  .citation-list button:hover { background: #e8efff; }
+  .insight-finding details { margin-top: 14px; }
+  .insight-finding summary { color: var(--blue); font-weight: 600; cursor: pointer; }
+  .insight-finding details p, .insight-finding details li { color: var(--text-2); }
+  .assessment-summary { font-size: 1rem; line-height: 1.65; }
+  .limit-list { margin: 10px 0 0; padding-left: 18px; color: var(--text-2); }
+  .limit-list li { margin-bottom: 8px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
-<header>
-  <h1>HandoffProof Control Room <span class="sub">Rehearse the day your developer leaves.</span></h1>
-  <div class="mono" id="hdr">loading…</div>
-</header>
-<main>
-  <section class="kpis" id="kpis"></section>
-  <section class="panel">
-    <h2>Handover Score</h2>
-    <div id="scorebox">computing…</div>
-    <div id="trend" style="display:flex;align-items:flex-end;gap:4px;height:56px;margin-top:.6rem"></div>
-  </section>
-  <div class="grid">
-    <section class="panel">
-      <h2>Planted-fault scoreboard</h2>
-      <table><thead><tr><th>Fault</th><th>Kind</th><th>Status</th><th>Basis</th></tr></thead><tbody id="score"></tbody></table>
-      <p class="muted small">Ground truth lives outside the agent's reach. A fault counts as caught only from controller evidence or the deterministic scan.</p>
-    </section>
-    <section class="panel">
-      <h2>Run a drill (controller-executed)</h2>
-      <div id="drills"></div>
-      <p class="muted small" id="jobstatus">Drills run in isolated Docker sandboxes. Verdicts come from controller assertions only.</p>
-      <button class="ghost" id="scanbtn">Run static scan</button>
-      <span class="small" id="scanout"></span>
-    </section>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- IBM Carbon icons (Apache-2.0), inlined for offline use -->
+  <symbol id="i-dashboard" viewBox="0 0 32 32"><path d="M24 21H26V26H24zM20 16H22V26H20zM11 26a5.0059 5.0059 0 01-5-5H8a3 3 0 103-3V16a5 5 0 010 10z"/><path d="M28,2H4A2.002,2.002,0,0,0,2,4V28a2.0023,2.0023,0,0,0,2,2H28a2.0027,2.0027,0,0,0,2-2V4A2.0023,2.0023,0,0,0,28,2Zm0,9H14V4H28ZM12,4v7H4V4ZM4,28V13H28.0007l.0013,15Z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 32 32"><path d="M7,28a1,1,0,0,1-1-1V5a1,1,0,0,1,1.4819-.8763l20,11a1,1,0,0,1,0,1.7525l-20,11A1.0005,1.0005,0,0,1,7,28ZM8,6.6909V25.3088L24.9248,16Z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 32 32"><path d="M25.7,9.3l-7-7A.9078.9078,0,0,0,18,2H8A2.0059,2.0059,0,0,0,6,4V28a2.0059,2.0059,0,0,0,2,2H24a2.0059,2.0059,0,0,0,2-2V10A.9078.9078,0,0,0,25.7,9.3ZM18,4.4,23.6,10H18ZM24,28H8V4h8v6a2.0059,2.0059,0,0,0,2,2h6Z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 32 32"><path d="M29,27.5859l-7.5521-7.5521a11.0177,11.0177,0,1,0-1.4141,1.4141L27.5859,29ZM4,13a9,9,0,1,1,9,9A9.01,9.01,0,0,1,4,13Z"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 32 32"><path d="M18,28H14a2,2,0,0,1-2-2V18.41L4.59,11A2,2,0,0,1,4,9.59V6A2,2,0,0,1,6,4H26a2,2,0,0,1,2,2V9.59A2,2,0,0,1,27.41,11L20,18.41V26A2,2,0,0,1,18,28ZM6,6V9.59l8,8V26h4V17.59l8-8V6Z"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 32 32"><path d="M16 23a1.5 1.5 0 101.5 1.5A1.5 1.5 0 0016 23zM15 12H17V21H15z"/><path d="M29,30H3a1,1,0,0,1-.8872-1.4614l13-25a1,1,0,0,1,1.7744,0l13,25A1,1,0,0,1,29,30ZM4.6507,28H27.3493l.002-.0033L16.002,6.1714h-.004L4.6487,27.9967Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 32 32"><path d="M13 24L4 15 5.414 13.586 13 21.171 26.586 7.586 28 9 13 24z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 32 32"><path d="M18 6L16.57 7.393 24.15 15 4 15 4 17 24.15 17 16.57 24.573 18 26 28 16 18 6z"/></symbol>
+  <!-- Official Slack mark (Slack brand CDN) and GitHub mark (GitHub via Simple Icons). -->
+  <symbol id="i-slack" viewBox="0 0 54 54"><path d="M11.379 33.9993C11.379 37.1358 8.84512 39.6507 5.7276 39.6507C2.61008 39.6507 0.0572205 37.1168 0.0572205 33.9993C0.0572205 30.8817 2.5911 28.3479 5.70862 28.3479H11.36V33.9993H11.379Z" fill="#E3066A"/><path d="M14.1962 33.9997C14.1962 30.8632 16.7301 28.3483 19.8476 28.3483C22.9651 28.3483 25.499 30.8822 25.499 33.9997V48.1353C25.499 51.2718 22.9651 53.7867 19.8476 53.7867C16.7301 53.7867 14.1962 51.2718 14.1962 48.1353V33.9997Z" fill="#E3066A"/><path d="M19.8662 11.2673C16.7296 11.2673 14.2148 8.73347 14.2148 5.61594C14.2148 2.49842 16.7486 -0.0354538 19.8662 -0.0354538C22.9837 -0.0354538 25.5175 2.49842 25.5175 5.61594V11.2673H19.8662Z" fill="#00B3FF"/><path d="M19.8682 14.1334C23.0047 14.1334 25.5196 16.6673 25.5196 19.7848C25.5196 22.9023 22.9857 25.4362 19.8682 25.4362H5.67566C2.53916 25.4362 0.0242615 22.9023 0.0242615 19.7848C0.0242615 16.6673 2.55814 14.1334 5.67566 14.1334H19.8682Z" fill="#00B3FF"/><path d="M42.5323 19.7853C42.5323 16.6488 45.0662 14.1339 48.1837 14.1339C51.3012 14.1339 53.8351 16.6678 53.8351 19.7853C53.8351 22.9028 51.3012 25.4367 48.1837 25.4367H42.5323V19.7853Z" fill="#41B658"/><path d="M39.7126 19.7934C39.7126 22.9299 37.1787 25.4448 34.0612 25.4448C30.9436 25.4448 28.4098 22.911 28.4098 19.7934V5.61986C28.4098 2.48336 30.9436 -0.0315399 34.0612 -0.0315399C37.1787 -0.0315399 39.7126 2.48336 39.7126 5.61986V19.7934Z" fill="#41B658"/><path d="M34.0376 42.482C37.1741 42.482 39.689 45.0158 39.689 48.1334C39.689 51.2509 37.1552 53.7848 34.0376 53.7848C30.9201 53.7848 28.3862 51.2509 28.3862 48.1334V42.482H34.0376Z" fill="#FCC003"/><path d="M34.0381 39.6507C30.9016 39.6507 28.3867 37.1168 28.3867 33.9993C28.3867 30.8818 30.9206 28.3479 34.0381 28.3479H48.2306C51.3671 28.3479 53.882 30.8818 53.882 33.9993C53.882 37.1168 51.3482 39.6507 48.2306 39.6507H34.0381Z" fill="#FCC003"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24"><path fill="#181717" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></symbol>
+  <symbol id="i-close" viewBox="0 0 32 32"><path d="M17.414 16 24 9.414 22.586 8 16 14.586 9.414 8 8 9.414 14.586 16 8 22.586 9.414 24 16 17.414 22.586 24 24 22.586 17.414 16z"/></symbol>
+  <symbol id="i-chev-l" viewBox="0 0 32 32"><path d="M20 6l1.414 1.414L13.828 15l7.586 7.586L20 24l-9-9z"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 32 32"><path d="m12 24-1.414-1.414L18.172 15l-7.586-7.586L12 6l9 9z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 32 32"><path d="M4,2H2V28a2,2,0,0,0,2,2H30V28H4Z"/><path d="M30,9H23v2h3.59L19,18.59l-4.29-4.3a1,1,0,0,0-1.42,0L6,21.59,7.41,23,14,16.41l4.29,4.3a1,1,0,0,0,1.42,0L28,12.41V16h2Z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 32 32"><path d="M14 16.59L11.41 14 10 15.41 14 19.41 22 11.41 20.59 10 14 16.59z"/><path d="M16,30,9.8242,26.7071A10.9818,10.9818,0,0,1,4,17V4A2.0021,2.0021,0,0,1,6,2H26a2.0021,2.0021,0,0,1,2,2V17a10.9818,10.9818,0,0,1-5.8242,9.7071ZM6,4V17a8.9852,8.9852,0,0,0,4.7656,7.9423L16,27.7333l5.2344-2.791A8.9852,8.9852,0,0,0,26,17V4Z"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 32 32"><path d="M4 6H28V8H4zM4 15H28V17H4zM4 24H28V26H4z"/></symbol>
+
+</svg>
+<header class="header">
+  <button class="header-menu" id="menubtn" aria-label="Open navigation" aria-expanded="false"><svg class="ic" style="width:20px;height:20px"><use href="#i-menu"/></svg></button>
+  <a class="header-name" href="#start"><b>HandoffProof</b><span>Control Room</span></a>
+  <div class="header-actions">
+    <a class="header-link" href="#settings" data-page-link="settings"><svg class="ic"><use href="#i-filter"/></svg>Settings</a>
+    <span class="header-status"><span class="dot"></span><span id="hdr">loading…</span></span>
   </div>
-  <section class="panel">
-    <h2>What-if: remove a dependency</h2>
-    <p><label class="muted">Dependency </label><select id="whatifnode"></select>
-      <button class="ghost" id="whatifbtn">Simulate removal</button></p>
-    <div id="whatifout" class="small">Pick a dependency to preview which workflows break and which drill would confirm it. Preview only — nothing is executed.</div>
+</header>
+<nav class="sidenav" aria-label="Main">
+  <div class="nav-group">Start</div>
+  <button class="nav-link active" data-page="start"><svg class="ic"><use href="#i-check"/></svg>Get started</button>
+  <div class="nav-group">Control Room</div>
+  <button class="nav-link" data-page="applications"><svg class="ic"><use href="#i-doc"/></svg>Applications</button>
+  <button class="nav-link" data-page="overview"><svg class="ic"><use href="#i-dashboard"/></svg>Readiness</button>
+  <button class="nav-link" data-page="drills"><svg class="ic"><use href="#i-play"/></svg>Rehearse</button>
+  <button class="nav-link" data-page="evidence"><svg class="ic"><use href="#i-doc"/></svg>Evidence</button>
+  <button class="nav-link" data-page="insights"><svg class="ic"><use href="#i-chart"/></svg>Insights</button>
+  <div class="nav-group">Project</div>
+  <button class="nav-link" data-page="settings"><svg class="ic"><use href="#i-filter"/></svg>Settings</button>
+  <button class="nav-link" data-page="about"><svg class="ic"><use href="#i-doc"/></svg>About HOP</button>
+  <div class="sidenav-foot" id="sysfoot">
+    <div><span>Verdicts</span><span class="mono">controller</span></div>
+    <div><span>Model</span><span class="mono">proposes only</span></div>
+    <div><span>Manifest</span><span class="mono" id="footmanifest">…</span></div>
+  </div>
+</nav>
+<main class="content"><div class="pagewrap">
+  <!-- GET STARTED -->
+  <section class="page active" id="page-start">
+    <div class="page-head">
+      <div>
+        <h1>Start your first <strong>handover rehearsal.</strong></h1>
+        <p>Follow these steps in order. Each one opens the real page where the work happens - readiness first, then a safe rehearsal, the evidence it produced, and the report you can hand over.</p>
+        <div class="btnrow">
+          <button class="btn" data-start-drill="0">Run the baseline rehearsal <svg class="ic"><use href="#i-arrow"/></svg></button>
+          <button class="btn ghost" data-goto="overview">Check readiness first</button>
+        </div>
+      </div>
+      <img class="illo-sm" src="/assets/illustrations/handover.svg" alt="Storyset illustration: a handover agreement" width="180" height="180">
+    </div>
+    <div class="steps" id="startsteps" aria-label="Getting started checklist"></div>
+    <div class="grid2">
+      <section class="tile">
+        <h2><svg class="ic"><use href="#i-shield"/></svg>How to read the result</h2>
+        <p class="small muted">A green result means the controller observed the workflow succeed. A red result is useful: it is the rehearsal catching a dependency before the real handover does. The model can explain and propose a repair, but it never changes a verdict.</p>
+        <button class="btn ghost" data-goto="about">Read how HandoffProof works</button>
+      </section>
+      <section class="tile">
+        <h2><svg class="ic"><use href="#i-filter"/></svg>Before you invite the team</h2>
+        <p class="small muted">Connect Slack for report summaries and GitHub for the remediation repository in Settings. Only console operators can change integrations; people with a read-only share link can view reports and evidence.</p>
+        <button class="btn ghost" data-goto="settings">Open Settings</button>
+      </section>
+    </div>
   </section>
-  <section class="panel">
-    <h2>Evidence explorer</h2>
-    <p><label class="muted">Drill filter </label>
+
+  <!-- APPLICATIONS -->
+  <section class="page" id="page-applications">
+    <div class="page-head">
+      <div><h1>Test <strong>your own application.</strong></h1><p>Import a Docker Compose application, describe its real workflows in a profile, validate it, then run HandoffProof rehearsals against it. Secrets are encrypted on the server and never returned to the browser.</p></div>
+      <img class="illo-sm" src="/assets/illustrations/rehearse.svg" alt="Storyset illustration: preparing a rehearsal" width="180" height="180">
+    </div>
+    <div class="settings-grid">
+      <section class="tile" aria-labelledby="app-add-title">
+        <h2 id="app-add-title"><svg class="ic"><use href="#i-doc"/></svg>Add application</h2>
+        <div class="field"><label for="app-source-kind">Source</label><select id="app-source-kind"><option value="local">Local folder on this server</option><option value="github">GitHub repository (connected account)</option></select></div>
+        <div class="field"><label for="app-name">Application name</label><input id="app-name" type="text" placeholder="Customer portal"></div>
+        <div class="field" id="app-local-wrap"><label for="app-local-path">Local application folder</label><input id="app-local-path" type="text" placeholder="D:\path\to\your-app"><span class="hint">The folder must contain your Compose file. HandoffProof copies it into its server-side application store.</span></div>
+        <div class="field" id="app-github-wrap" hidden><label for="app-repository">GitHub repository</label><input id="app-repository" type="text" placeholder="owner/repository"><label for="app-branch">Branch</label><input id="app-branch" type="text" placeholder="main"><span class="hint">Connect GitHub in Settings first. The archive is downloaded with the server-side token.</span></div>
+        <div class="field"><label for="app-profile">Application profile (`handoffproof.json`)</label><textarea id="app-profile" rows="18" class="mono" style="width:100%;background:var(--layer);color:var(--text);border:1px solid var(--border-strong);padding:12px;font:inherit"></textarea><span class="hint">Declare services, health checks, environment names, credentials, workflows, data stores, and backup commands. No secret values or shell commands belong in the profile.</span></div>
+        <div class="field"><label for="app-env">Test environment values</label><textarea id="app-env" rows="5" class="mono" placeholder="DATABASE_URL=postgres://...&#10;MAIL_API_TOKEN=test-token" style="width:100%;background:var(--layer);color:var(--text);border:1px solid var(--border-strong);padding:12px;font:inherit"></textarea><span class="hint">One KEY=value per line. Use sandbox/test credentials only. Values are encrypted on the server.</span></div>
+        <div class="btnrow"><button class="btn" id="app-create" type="button">Import and validate application</button></div>
+        <div class="small muted" id="app-create-msg" role="status"></div>
+      </section>
+      <section class="tile" aria-labelledby="app-list-title">
+        <h2 id="app-list-title"><svg class="ic"><use href="#i-dashboard"/></svg>Your applications</h2>
+        <p class="muted small">Validate first, run the baseline, then run a credential, configuration, or backup rehearsal. Results are written to Evidence with the application ID and source hash.</p>
+        <div id="applications-list"><p class="muted small">Loading applications…</p></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- READINESS -->
+  <section class="page" id="page-overview">
+    <div class="leadspace"><div class="leadgrid"><div>
+      <h1>Rehearse the day your <strong>developer leaves.</strong></h1>
+      <p class="sub">Controller-executed drills prove the app survives its author. The model proposes, explains, and repairs - verdicts come from evidence only.</p>
+      <button class="btn" id="hero-drill">Run a drill <svg class="ic"><use href="#i-arrow"/></svg></button>
+      <a class="btn darkghost" href="/report" target="_blank" rel="noopener" style="margin-left:8px">Open evidence report</a>
+    </div><img class="illo" src="/assets/illustrations/handover.svg" alt="Storyset illustration: two people shaking hands on a handover agreement" width="330" height="330"></div></div>
+    <div class="stats" id="kpis"></div>
+    <div class="scorewrap">
+      <div class="tile">
+        <h2><svg class="ic"><use href="#i-chart"/></svg>Handover Score</h2>
+        <div class="scorebig"><span id="scorebig">–</span><small> /100</small></div>
+        <p class="muted small" id="scorebasis">computing…</p>
+        <div class="trend" id="trend"></div>
+      </div>
+      <div class="tile">
+        <h2><svg class="ic"><use href="#i-dashboard"/></svg>Score components</h2>
+        <div id="compbars"></div>
+        <p class="muted small">Weights: workflows 40 · faults 30 · documentation 20 · backup 10. Deterministic - the model never scores itself.</p>
+      </div>
+    </div>
+    <div class="masterdetail">
+      <div class="tile" style="padding:8px 8px 16px">
+        <h2 style="padding:14px 14px 4px"><svg class="ic"><use href="#i-warn"/></svg>Planted faults <span class="tag caught" id="faultcount" style="margin-left:auto"></span></h2>
+        <div id="faultlist"></div>
+        <p class="muted small" style="padding:8px 14px 0">Ground truth lives outside the agent's reach. Caught counts only from controller evidence or the deterministic scan.</p>
+      </div>
+      <div class="detail" id="faultdetail"></div>
+    </div>
+  </section>
+
+  <!-- 02 REHEARSE -->
+  <section class="page" id="page-drills">
+    <div class="leadspace"><div class="leadgrid"><div>
+      <h1>Break it <strong>before the handover does.</strong></h1>
+      <p class="sub">Each drill boots the app in a fresh, isolated Docker sandbox - no published ports, random tokens - and the controller asserts real workflows.</p>
+      <button class="btn" id="scanbtn"><svg class="ic"><use href="#i-search"/></svg>Run static scan</button>
+      <span class="small" id="scanout" style="margin-left:10px;color:#c6c6c6"></span>
+    </div><img class="illo" src="/assets/illustrations/rehearse.svg" alt="Storyset illustration: two people debugging machinery" width="330" height="330"></div></div>
+    <div class="drillgrid" id="drillcards" style="margin-top:16px"></div>
+    <div class="grid2">
+      <div class="detail" style="min-height:0" id="drilldetail"></div>
+      <div class="tile">
+        <h2><svg class="ic"><use href="#i-filter"/></svg>What-if: remove a dependency</h2>
+        <p class="muted small">Preview which workflows break and which drill would confirm it. Preview only - nothing is executed.</p>
+        <p><select id="whatifnode"></select> <button class="btn" id="whatifbtn">Simulate</button></p>
+        <div id="whatifout" class="small"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 EVIDENCE -->
+  <section class="page" id="page-evidence">
+    <div class="page-head">
+      <div><h1>Every verdict, <strong>on record.</strong></h1><p>Controller-issued records only. Filter by drill or search assertions; the full report carries the manifest integrity check.</p></div>
+      <img class="illo-sm" src="/assets/illustrations/evidence.svg" alt="Storyset illustration: documents" width="180" height="180">
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:0">
       <select id="filter"><option value="">all drills</option></select>
-      <a href="/report" target="_blank" rel="noopener">Open full HTML evidence report</a></p>
-    <table><thead><tr><th>Evidence</th><th>Drill</th><th>Workflow</th><th>Assertion</th><th>Result</th></tr></thead><tbody id="ev"></tbody></table>
+      <select id="evstatus" aria-label="Filter by result"><option value="">all results</option><option value="passed">passed</option><option value="failed">failed</option></select>
+      <input type="search" id="evq" placeholder="Search assertions…" aria-label="Search evidence">
+      <span class="muted small" id="evcount"></span>
+      <span style="flex:1"></span>
+      <button class="btn" id="fullreport-btn" aria-haspopup="dialog"><svg class="ic"><use href="#i-doc"/></svg>Full report</button>
+    </div>
+    <table style="margin-top:12px"><thead><tr><th>Evidence</th><th>Drill</th><th>Workflow</th><th>Assertion</th><th>Result</th></tr></thead><tbody id="ev"></tbody></table>
+    <div class="pagination" id="ev-pagination" aria-label="Evidence pagination">
+      <div class="pagination-group">
+        <label for="ev-page-size">Rows per page</label>
+        <select id="ev-page-size"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select>
+        <span id="ev-range" aria-live="polite"></span>
+      </div>
+      <div class="pagination-nav">
+        <button class="page-btn" id="ev-first" type="button" aria-label="First page">First</button>
+        <button class="page-btn" id="ev-prev" type="button" aria-label="Previous page"><svg class="ic"><use href="#i-chev-l"/></svg></button>
+        <div class="pagination-pages" id="ev-pages"></div>
+        <button class="page-btn" id="ev-next" type="button" aria-label="Next page"><svg class="ic"><use href="#i-chev-r"/></svg></button>
+        <button class="page-btn" id="ev-last" type="button" aria-label="Last page">Last</button>
+      </div>
+    </div>
   </section>
-  <section class="panel">
-    <h2>Model diagnosis</h2>
-    <div id="diag"></div>
+
+  <!-- 04 INSIGHTS -->
+  <section class="page" id="page-insights">
+    <div class="page-head">
+      <div><h1>Model output, <strong>anchored to evidence.</strong></h1><p>Diagnosis and assessment cite controller evidence IDs and verified source references. Observed claims without a citation fail verification.</p></div>
+      <img class="illo-sm" src="/assets/illustrations/insights.svg" alt="Storyset illustration: data analysis" width="180" height="180">
+    </div>
+    <div class="stats" id="insightstats" aria-label="Insights totals"></div>
+    <div class="insights-layout">
+      <section class="tile" aria-labelledby="insights-findings-title">
+        <h2 id="insights-findings-title"><svg class="ic"><use href="#i-search"/></svg>Findings</h2>
+        <p class="muted small">Start with failures. Every observed finding should carry evidence IDs and a source reference; inferred risks and untested dependencies stay clearly labelled.</p>
+        <div class="insight-toolbar">
+          <div class="segmented" role="group" aria-label="Filter findings">
+            <button type="button" class="active" data-ifilter="all">All</button>
+            <button type="button" data-ifilter="observed_failure">Failures</button>
+            <button type="button" data-ifilter="observed_pass">Passes</button>
+            <button type="button" data-ifilter="inferred_risk">Risks</button>
+            <button type="button" data-ifilter="untested_dependency">Untested</button>
+          </div>
+          <input type="search" id="insightq" placeholder="Search findings…" aria-label="Search findings">
+        </div>
+        <div id="diag"></div>
+      </section>
+      <aside class="insights-rail">
+        <section class="tile" aria-labelledby="insights-assessment-title">
+          <h2 id="insights-assessment-title"><svg class="ic"><use href="#i-check"/></svg>Final assessment</h2>
+          <div id="assess"></div>
+        </section>
+        <section class="tile">
+          <h2><svg class="ic"><use href="#i-shield"/></svg>How to act on this</h2>
+          <p class="small muted">Fix observed failures first. Treat inferred risks as investigation leads, and keep untested dependencies visible in the handover until a drill covers them.</p>
+          <div class="btnrow">
+            <button class="btn" type="button" id="insights-open-report">Open full report</button>
+            <button class="btn ghost" type="button" data-goto="evidence">Review evidence</button>
+          </div>
+        </section>
+      </aside>
+    </div>
   </section>
-  <section class="panel">
-    <h2>Final assessment</h2>
-    <div id="assess"></div>
+
+  <!-- SETTINGS -->
+  <section class="page" id="page-settings">
+    <div class="page-head">
+      <div><h1>Settings & <strong>integrations.</strong></h1><p>Connect the tools your team already uses. Operators can change integrations; everyone else sees the current status. Secrets stay on the server and are never shown here.</p></div>
+      <img class="illo-sm" src="/assets/illustrations/about.svg" alt="Storyset illustration: a team working together" width="180" height="180">
+    </div>
+    <div class="settings-grid">
+      <section class="tile" aria-labelledby="settings-slack-title">
+        <h2 id="settings-slack-title"><svg class="brand-ic sm"><use href="#i-slack"/></svg>Slack</h2>
+        <p class="muted small">Post the counts-only report summary to a channel your team watches.</p>
+        <div id="slack-settings-body"><p class="muted small">Loading Slack status…</p></div>
+      </section>
+      <section class="tile" aria-labelledby="settings-github-title">
+        <h2 id="settings-github-title"><svg class="brand-ic sm"><use href="#i-github"/></svg>GitHub</h2>
+        <p class="muted small">Connect GitHub and choose the repository HandoffProof should use for remediation work.</p>
+        <div id="github-settings-body"><p class="muted small">Loading GitHub status…</p></div>
+      </section>
+      <section class="tile" aria-labelledby="settings-report-title">
+        <h2 id="settings-report-title"><svg class="ic"><use href="#i-doc"/></svg>Report & sharing</h2>
+        <div class="setting-row"><span class="k">Read-only share links</span><span class="v">24 hours</span></div>
+        <div class="setting-row"><span class="k">Download</span><span class="v">Themed PDF (print)</span></div>
+        <div class="field">
+          <label for="setting-page-size">Evidence rows per page</label>
+          <select id="setting-page-size"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select>
+          <span class="hint">Saved in this browser and used by Evidence and the generated report.</span>
+        </div>
+        <div class="btnrow"><button class="btn" id="setting-open-report" type="button">Open full report</button><button class="btn ghost" data-goto="evidence" type="button">Review evidence</button></div>
+      </section>
+      <section class="tile" aria-labelledby="settings-server-title">
+        <h2 id="settings-server-title"><svg class="ic"><use href="#i-shield"/></svg>Server & safety</h2>
+        <div id="server-settings-body"><p class="muted small">Loading server status…</p></div>
+        <p class="small muted">Verdicts are issued by the controller only. The model proposes, explains, and repairs; it cannot mark anything passed or failed.</p>
+      </section>
+    </div>
   </section>
-  <footer id="foot"></footer>
-</main>
+
+  <!-- ABOUT -->
+  <section class="page" id="page-about">
+    <div style="display:flex;gap:24px;align-items:center">
+      <div style="flex:1;min-width:0">
+      <h1 class="pagetitle">About HandoffProof</h1>
+      <p class="pagedesc">What problem this project addresses, how it addresses it, what exists today, what has been measured, and what comes next.</p>
+      </div>
+      <img class="illo-sm" src="/assets/illustrations/about.svg" alt="Storyset illustration: a team working together" width="180" height="180">
+    </div>
+    <div class="doc"><div class="doc-body prose">
+      <h2 id="problem">The problem</h2>
+      <p>Software rarely fails the day it is written. It fails the day its author leaves - when a credential only they held is withdrawn, a configuration value only they knew goes missing, or a backup nobody tested turns out to be incomplete. The knowledge was never in the repository; it was in a person.</p>
+      <p>Documentation does not close this gap by itself, because documents describe what someone believed, not what the system does. A handover document can say the reminder job is configured while the variable it needs is documented nowhere.</p>
+      <div class="callout"><b>In one line:</b> HandoffProof rehearses the developer's exit and proves, with observed evidence, whether the application survives it.</div>
+
+      <h2 id="approach">Our approach</h2>
+      <p>A deterministic Go controller owns every verdict. It copies the application into an isolated Docker sandbox, injects a failure (a withdrawn token, a missing configuration, an incomplete backup), and asserts real workflows - a user row exists, a booking persists, exactly one confirmation email arrived. Each assertion becomes an evidence record.</p>
+      <p>A Meta-model agent works around that core. It reads the static scan, proposes dependency maps, diagnoses failures from controller evidence, and drafts repairs. It never issues a verdict, never writes evidence, and never touches protected paths: acceptance tests, the controller, and the evidence format are hash-frozen and verified before and after every run.</p>
+
+      <h2 id="built">What we built</h2>
+      <table>
+        <thead><tr><th>Layer</th><th>Responsibility</th></tr></thead>
+        <tbody>
+          <tr><td>Static scan</td><td>Deterministic inventory of environment variables, storage, hosts, jobs, and backup gaps - no model involved.</td></tr>
+          <tr><td>Controller and drills</td><td>Sandboxed rehearsals with controller-only assertions; the sole source of pass/fail and evidence.</td></tr>
+          <tr><td>Agent</td><td>Dependency maps, diagnosis, repair proposals, and assessments - validated against schemas and cited evidence.</td></tr>
+          <tr><td>Verifier</td><td>Adversarial checks that every citation resolves to a real file, line, and evidence record; fabricated references fail.</td></tr>
+          <tr><td>Evidence and report</td><td>Immutable records and the self-contained HTML report with a controller-measured integrity check.</td></tr>
+          <tr><td>Control Room</td><td>This console: readiness score, drill launcher, evidence explorer, and insights.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="contribution">Core contribution</h2>
+      <p>The contribution is the separation of judgement from generation. Language models are fluent and often right, which makes their errors hard to spot. HandoffProof lets the model do what it is good at - reading, explaining, proposing - while a small deterministic core decides what is true, and can prove it with evidence a third party can re-run.</p>
+
+      <h2 id="verified">Executed and verified</h2>
+      <ul>
+        <li>Four controller drills (baseline, withdrawn token, missing configuration, incomplete backup) run end to end in isolated sandboxes; the three fault drills fail exactly the assertion they were designed to break.</li>
+        <li>The independent Playwright acceptance suite passes 4/4 on the healthy baseline and goes red when the token is withdrawn - then green again after a controller-applied repair and identical rerun.</li>
+        <li>Planted-fault scoreboard: 5/5 caught, each from controller evidence or the deterministic scan.</li>
+        <li>Current Handover Score: 84/100. The planted backup gap keeps it below 100 on purpose.</li>
+        <li>Benchmark harness with a held-out fixture application, reported in the results table.</li>
+      </ul>
+
+      <h2 id="scope">Scope</h2>
+      <h3>In scope</h3>
+      <ul>
+        <li>Single-operator handover rehearsal for containerized applications like the bundled demo app.</li>
+        <li>Failure classes: withdrawn credentials, undocumented configuration, incomplete backups, silent failures, documentation gaps.</li>
+      </ul>
+      <h3>Not in scope today</h3>
+      <ul>
+        <li>Multi-tenant or multi-user operation; the console uses one shared token by design.</li>
+        <li>Attackers with local filesystem or Docker-daemon access to the host machine.</li>
+        <li>Automatic push or pull-request creation - remediation stops at a reviewed, dry-run diff.</li>
+      </ul>
+
+      <h2 id="limits">Known limits</h2>
+      <ul>
+        <li>Prompt injection can influence model text. It cannot influence verdicts, evidence, or accepted repairs; those gates are deterministic.</li>
+        <li>Secret redaction is pattern-based defense in depth. The hard boundary is that credential files are never read into model context at all.</li>
+        <li>Container images are pinned by tag and lockfile, not yet by digest.</li>
+      </ul>
+
+      <h2 id="commands">Commands</h2>
+      <table>
+        <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">handoffproof scan</td><td>Static inventory of the application under test.</td></tr>
+          <tr><td class="mono">handoffproof drill</td><td>Run one rehearsal in a fresh sandbox and record evidence.</td></tr>
+          <tr><td class="mono">handoffproof repair</td><td>Apply a proposed diff to a copy and rerun the identical acceptance suite.</td></tr>
+          <tr><td class="mono">handoffproof report</td><td>Render the evidence report with its integrity check.</td></tr>
+          <tr><td class="mono">handoffproof verify</td><td>Adversarially verify a diagnosis against real code and evidence.</td></tr>
+          <tr><td class="mono">handoffproof serve</td><td>Start this Control Room (loopback, token-authenticated).</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="roadmap">Roadmap</h2>
+      <ul>
+        <li>Demo video and hackathon submission pack.</li>
+        <li>Image digest pinning for the sandbox supply chain.</li>
+        <li>A held-out fault authored by someone outside the implementation team.</li>
+      </ul>
+
+      <h2 id="run">Run it yourself</h2>
+      <div class="callout" style="border-left-color:var(--blue)">
+        <span class="mono">go run ./cmd/handoffproof serve</span><br>
+        <span class="mono">go run ./cmd/handoffproof drill --drill withdrawn_test_token</span><br>
+        <span class="mono">bash scripts/check.sh</span>
+      </div>
+      <p>Then open the token URL the server prints. Everything on this page can be reproduced from the repository with those three commands.</p>
+    </div>
+    <nav class="toc" aria-label="On this page">
+      <b>On this page</b>
+      <a href="#problem">The problem</a><a href="#approach">Our approach</a><a href="#built">What we built</a><a href="#contribution">Core contribution</a><a href="#verified">Executed and verified</a><a href="#scope">Scope</a><a href="#limits">Known limits</a><a href="#commands">Commands</a><a href="#roadmap">Roadmap</a><a href="#run">Run it yourself</a>
+    </nav>
+    </div>
+  </section>
+
+  <footer><svg class="ic"><use href="#i-shield"/></svg><span>Pass/fail is decided by the controller. The model proposes, explains and repairs - it never issues a verdict.</span> <span>Illustrations by <a href="https://storyset.com" target="_blank" rel="noopener">Storyset</a>.</span></footer>
+</div></main>
+<div class="share-backdrop" id="share-backdrop" hidden>
+  <div class="share-dialog" role="dialog" aria-modal="true" aria-labelledby="share-title" aria-describedby="share-desc">
+    <button class="share-close-icon" id="share-x" type="button" aria-label="Close share dialog"><svg class="ic"><use href="#i-close"/></svg></button>
+    <h2 id="share-title">Share this report</h2>
+    <p class="muted small" id="share-desc">The full HTML evidence report carries the manifest integrity check.</p>
+    <button class="share-opt" id="share-copy" type="button"><span><b>Copy link</b><span class="muted small">Anyone with the link can read the report for 24 hours. No sign-in or token typing.</span></span><svg class="ic"><use href="#i-arrow"/></svg></button>
+    <button class="share-opt" id="share-pdf" type="button"><span><b>Download PDF</b><span class="muted small">Open the themed report and save it as PDF. Print includes every evidence row.</span></span><svg class="ic"><use href="#i-arrow"/></svg></button>
+    <button class="share-opt" id="share-slack" type="button"><svg class="brand-ic"><use href="#i-slack"/></svg><span><b id="share-slack-title">Post to Slack</b><span class="muted small" id="share-slack-sub">Send a counts-only summary. The webhook and console token never leave the server.</span></span><svg class="ic"><use href="#i-arrow"/></svg></button>
+    <div class="share-footer">
+      <div class="muted small" id="share-status" role="status" aria-live="polite"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn ghost" id="share-slack-disconnect" type="button" hidden>Disconnect Slack</button>
+        <button class="btn ghost" id="share-close" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 async function getJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
-function badge(ok, yes, no) { return '<span class="badge ' + (ok ? 'pass' : 'fail') + '">' + (ok ? yes : no) + '</span>'; }
+function badge(ok, yes, no) { return '<span class="tag ' + (ok ? 'pass' : 'fail') + '">' + (ok ? yes : no) + '</span>'; }
+const PAGES = ['start', 'applications', 'overview', 'drills', 'evidence', 'insights', 'settings', 'about'];
+function showPage(name) {
+  if (!PAGES.includes(name)) name = 'start';
+  document.querySelectorAll('[data-page]').forEach(x => x.classList.toggle('active', x.dataset.page === name));
+  document.querySelectorAll('.page').forEach(v => v.classList.toggle('active', v.id === 'page-' + name));
+}
+document.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => { showPage(b.dataset.page); history.replaceState(null, '', '#' + b.dataset.page); document.body.classList.remove('nav-open'); }));
+document.querySelectorAll('[data-page-link]').forEach(a => a.addEventListener('click', () => { showPage(a.dataset.pageLink); document.body.classList.remove('nav-open'); }));
+function gotoPage(name) { showPage(name); history.replaceState(null, '', '#' + name); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => gotoPage(b.dataset.goto)));
+document.querySelectorAll('[data-start-drill]').forEach(b => b.addEventListener('click', () => { drillSel = Number(b.dataset.startDrill) || 0; renderDrills(false); gotoPage('drills'); }));
+$('menubtn').addEventListener('click', () => {
+  const open = document.body.classList.toggle('nav-open');
+  $('menubtn').setAttribute('aria-expanded', String(open));
+});
+const TOC_IDS = ['problem', 'approach', 'built', 'contribution', 'verified', 'scope', 'limits', 'commands', 'roadmap', 'run'];
+showPage(TOC_IDS.includes(location.hash.slice(1)) ? 'about' : location.hash.slice(1));
+$('hero-drill').addEventListener('click', () => { showPage('drills'); history.replaceState(null, '', '#drills'); });
 
+/* About topic rail scrollspy (QSDTS toc behaviour) */
+const tocLinks = [...document.querySelectorAll('.toc a')];
+const tocSections = tocLinks.map(a => document.getElementById(a.getAttribute('href').slice(1))).filter(Boolean);
+function tocSpy() {
+  if (!$('page-about').classList.contains('active')) return;
+  let current = tocSections[0];
+  for (const s of tocSections) { if (s.getBoundingClientRect().top <= 120) current = s; }
+  tocLinks.forEach(a => a.classList.toggle('on', current && a.getAttribute('href') === '#' + current.id));
+}
+addEventListener('scroll', tocSpy, { passive: true });
+
+let summaryState = null;
+let scoreState = null;
+let githubState = { connected: false, can_connect: false, setup_reason: '' };
+let githubRepos = [];
 async function loadSummary() {
   const s = await getJSON('/api/summary');
-  $('hdr').textContent = 'model: ' + (s.model || 'not set') + ' · manifest ' + String(s.manifest).slice(0, 12) + '…';
+  summaryState = s;
+  $('hdr').textContent = (s.model || 'model not set');
+  $('footmanifest').textContent = String(s.manifest).slice(0, 10) + '…';
   $('kpis').innerHTML = [
-    [s.records, 'evidence records'], [s.passed, 'observed pass'], [s.failed, 'observed fail'], [s.runs, 'drill runs']
-  ].map(([n, l]) => '<div class="kpi"><b>' + esc(n) + '</b><span>' + esc(l) + '</span></div>').join('');
-  $('foot').textContent = 'Pass/fail is decided by the controller. The model proposes, explains and repairs — it never issues a verdict.';
+    [s.records, 'evidence records', ''], [s.passed, 'observed pass', ''], [s.failed, 'observed fail', ''], [s.runs, 'drill runs', ' purple']
+  ].map(([n, l, cls]) => '<div class="stat' + cls + '"><div class="v">' + esc(n) + '</div><div class="l">' + esc(l) + '</div></div>').join('');
+  renderStartSteps();
+  renderServerSettings();
 }
 
-let allEvidence = [];
-async function loadEvidence() {
-  allEvidence = await getJSON('/api/evidence');
-  const drills = [...new Set(allEvidence.map(r => r.drill))].sort();
-  $('filter').innerHTML = '<option value="">all drills</option>' + drills.map(d => '<option>' + esc(d) + '</option>').join('');
-  renderEvidence();
-}
-function renderEvidence() {
-  const f = $('filter').value;
-  const rows = allEvidence.filter(r => !f || r.drill === f).slice().reverse();
-  $('ev').innerHTML = rows.map(r =>
-    '<tr><td class="mono">' + esc(r.evidence_id) + '</td><td>' + esc(r.drill) + '</td><td>' + esc(r.workflow) + '</td><td>' + esc(r.assertion) + '</td><td>' + badge(r.passed, 'passed', 'failed') + '</td></tr>'
-  ).join('') || '<tr><td colspan="5" class="muted">No evidence yet. Run a drill.</td></tr>';
-}
-
-async function loadScore() {
-  const rows = await getJSON('/api/scoreboard');
-  $('score').innerHTML = rows.map(r =>
-    '<tr><td class="mono">' + esc(r.id) + '</td><td>' + esc(r.kind) + '</td><td><span class="badge ' + esc(r.status) + '">' + esc(r.status) + '</span></td><td class="mono">' + esc(r.basis) + '</td></tr>'
-  ).join('');
+async function loadHandoverScore() {
+  const s = await getJSON('/api/score');
+  scoreState = s;
+  const c = s.current.components || {};
+  $('scorebig').textContent = s.current.total;
+  $('scorebasis').textContent = 'Basis: ' + (s.current.basis || 'controller evidence, ground truth, and static scan');
+  const order = [['workflows', 'Workflows'], ['faults', 'Faults caught'], ['documentation', 'Documentation'], ['backup', 'Backup']];
+  $('compbars').innerHTML = order.map(([k, l], i) =>
+    '<div class="compbar"><div class="lbl"><span>' + l + '</span><span>' + esc(c[k] ?? '–') + '</span></div>' +
+    '<div class="track"><div class="fill' + (i === 0 ? ' purple' : '') + '" style="width:' + Math.max(0, Math.min(100, Number(c[k]) || 0)) + '%"></div></div></div>').join('');
+  const hist = (s.history || []).slice(-16);
+  $('trend').innerHTML = hist.length >= 2
+    ? hist.map(h => '<div title="' + esc(h.ts) + ': ' + esc(h.total) + '" style="height:' + Math.max(8, Number(h.total) || 0) + '%"></div>').join('')
+    : '<span class="muted small">' + (hist.length === 1 ? 'First snapshot - the trend appears after the next score run.' : 'No score history yet.') + '</span>';
+  renderStartSteps();
 }
 
-async function loadDiag() {
-  try {
-    const d = await getJSON('/api/diagnosis');
-    $('diag').innerHTML = (d.findings || []).map(f =>
-      '<div class="card"><span class="badge ' + (f.classification === 'observed_failure' ? 'fail' : f.classification === 'observed_pass' ? 'pass' : f.classification === 'inferred_risk' ? 'risk' : 'untested') + '">' + esc(f.classification) + '</span> ' +
-      '<b>' + esc(f.finding_id) + '</b> <span class="muted">' + esc(f.workflow) + ' · confidence ' + esc(f.confidence) + '</span><br>' +
-      '<span class="small">' + esc(f.root_cause) + '</span><br><span class="small muted">Impact: ' + esc(f.business_impact) + ' · Evidence: ' + esc((f.evidence_ids || []).join(', ')) + '</span></div>'
-    ).join('') || '<p class="muted">No findings.</p>';
-  } catch { $('diag').innerHTML = '<p class="muted">No diagnosis yet. Run a diagnosed drill from the CLI.</p>'; }
-  try {
-    const a = await getJSON('/api/assessment');
-    $('assess').innerHTML = '<p>' + esc(a.summary) + '</p><p class="small muted">Limitations: ' + esc((a.limitations || []).join(' · ')) + '</p>' +
-      '<p class="small">Acceptance integrity: ' + (a.acceptance_integrity && a.acceptance_integrity.unchanged ? 'unchanged' : 'CHANGED') + '</p>';
-  } catch { $('assess').innerHTML = '<p class="muted">No assessment yet.</p>'; }
+let faults = [], faultSel = 0;
+const FAULT_GUIDES = {
+  missing_configuration: { art: 'rehearse', scenario: 'A required setting exists only in the departing developer\u2019s environment. The app starts, but the reminder job silently stays dark.', breaks: 'Scheduled reminders stop without an obvious deploy failure. Users discover it only when reminders never arrive.', caught: 'The missing-configuration drill starts the sandbox without the scheduler token and the controller checks that the reminder workflow is reported dark.', next: 'Document the variable, give it a safe startup check, and re-run the missing-configuration drill before handover.', drill: 2, drillLabel: 'Run missing-config drill' },
+  silent_failure: { art: 'insights', scenario: 'The mail credential is withdrawn after the developer leaves. Bookings still save, so the product looks healthy while confirmation email silently stops.', breaks: 'Customers receive no confirmation, support cannot tell from the UI, and the failure is discovered late.', caught: 'The withdrawn-token drill revokes the mail token mid-flow; the controller requires the email assertion to fail loudly while bookings survive.', next: 'Rotate and document the mail credential, surface provider errors, and re-run the withdrawn-token drill.', drill: 1, drillLabel: 'Run withdrawn-token drill' },
+  incomplete_backup: { art: 'evidence', scenario: 'Backups complete on schedule but skip uploaded documents. The restore looks successful until a user needs a file that was never captured.', breaks: 'Restored bookings exist but their documents are missing, turning a routine restore into data loss.', caught: 'The incomplete-backup drill restores into a fresh stack and the controller compares uploaded documents, not just database rows.', next: 'Include uploads in the backup set, test a restore, and re-run the incomplete-backup drill.', drill: 3, drillLabel: 'Run incomplete-backup drill' },
+  withdrawn_test_token: { art: 'insights', scenario: 'A test credential the workflow still depends on is withdrawn. The dependent workflow must fail loudly instead of silently degrading.', breaks: 'The dependent workflow stops while nearby workflows keep passing, which can hide the blast radius.', caught: 'The withdrawn-token drill observes the dependent assertion fail against controller evidence.', next: 'Remove the hidden credential dependency or document and rotate it, then re-run the drill.', drill: 1, drillLabel: 'Run withdrawn-token drill' },
+};
+function faultGuide(f) {
+  return FAULT_GUIDES[f.kind] || { art: 'handover', scenario: 'A planted dependency fault is rehearsed against the real workflows in an isolated sandbox.', breaks: 'The affected workflow can fail after handover if the dependency is not documented or replaced.', caught: 'The controller compares the drill outcome with controller-issued evidence or the deterministic static scan.', next: 'Open the evidence, remove or document the dependency, and re-run the confirming drill.', drill: 0, drillLabel: 'Open rehearsals' };
 }
+function initials(kind) { return String(kind || '?').split('_').map(w => w[0]).join('').slice(0, 2).toUpperCase(); }
+function renderFaults() {
+  $('faultcount').textContent = faults.filter(f => f.status === 'caught').length + '/' + faults.length + ' caught';
+  $('faultlist').innerHTML = faults.map((f, i) =>
+    '<button class="rowitem' + (i === faultSel ? ' sel' : '') + '" data-fault="' + i + '">' +
+    '<span class="ava">' + esc(initials(f.kind)) + '</span>' +
+    '<span class="mid"><span class="t">' + esc(f.id) + '</span><br><span class="s">' + esc(f.kind) + '</span></span>' +
+    '<span class="tag ' + esc(f.status) + '">' + esc(f.status) + '</span></button>').join('');
+  document.querySelectorAll('[data-fault]').forEach(b => b.addEventListener('click', () => { faultSel = Number(b.dataset.fault); renderFaults(); }));
+  const f = faults[faultSel];
+  if (!f) { $('faultdetail').innerHTML = '<p class="muted">No faults loaded.</p>'; return; }
+  const g = faultGuide(f);
+  $('faultdetail').innerHTML =
+    '<div class="fault-hero"><div><div class="dlbl">Fault detail</div><div class="dtitle">' + esc(f.id) + '</div>' +
+    '<span class="tag ' + esc(f.status) + '">' + esc(f.status) + '</span>' +
+    '<p style="margin:14px 0 0;color:#e0e0e0">' + esc(g.scenario) + '</p></div>' +
+    '<div class="fault-art"><img src="/assets/illustrations/' + esc(g.art) + '.svg" alt="Storyset illustration for this fault"></div></div>' +
+    '<div class="kv"><div class="cell"><div class="k">Kind</div><div class="v">' + esc(f.kind) + '</div></div>' +
+    '<div class="cell"><div class="k">Status</div><div class="v">' + esc(f.status) + '</div></div>' +
+    '<div class="cell"><div class="k">Basis</div><div class="v mono">' + esc(f.basis) + '</div></div></div>' +
+    '<div class="fault-guide">' +
+      '<div class="cell"><div class="k">What breaks</div><p>' + esc(g.breaks) + '</p></div>' +
+      '<div class="cell"><div class="k">How the controller catches it</div><p>' + esc(g.caught) + '</p></div>' +
+      '<div class="cell"><div class="k">What to do before handover</div><p>' + esc(g.next) + '</p></div>' +
+      '<div class="cell"><div class="k">Ground truth rule</div><p>A fault counts as caught only when a controller drill observed the failure, or the deterministic static scan flagged it. The model cannot mark a fault caught.</p></div>' +
+    '</div>' +
+    '<div class="fault-actions"><button class="btn" type="button" data-fault-evidence>Open evidence <svg class="ic"><use href="#i-arrow"/></svg></button>' +
+    '<button class="btn darkghost" type="button" data-fault-drill="' + g.drill + '">' + esc(g.drillLabel) + '</button></div>';
+  const evBtn = document.querySelector('[data-fault-evidence]');
+  if (evBtn) evBtn.addEventListener('click', () => gotoPage('evidence'));
+  const drillBtn = document.querySelector('[data-fault-drill]');
+  if (drillBtn) drillBtn.addEventListener('click', () => { drillSel = Number(drillBtn.dataset.faultDrill) || 0; renderDrills(false); gotoPage('drills'); });
+}
+async function loadScore() { faults = await getJSON('/api/scoreboard'); renderFaults(); }
 
 const DRILLS = [
-  ['fresh_deployment_baseline', 'Baseline'],
-  ['withdrawn_test_token', 'Withdraw token'],
-  ['missing_configuration', 'Missing config'],
-  ['incomplete_backup', 'Incomplete backup']
+  ['fresh_deployment_baseline', 'Baseline', 'Fresh deploy: register, book, confirm - the healthy-path rehearsal.'],
+  ['withdrawn_test_token', 'Withdraw token', 'Revoke the mail token mid-flow; email must fail loudly, bookings must survive.'],
+  ['missing_configuration', 'Missing config', 'Scheduler token undocumented; the reminder job must be caught dark.'],
+  ['incomplete_backup', 'Incomplete backup', 'Backup skips uploads; restored documents must be caught missing.']
 ];
-function renderDrills(disabled) {
-  $('drills').innerHTML = DRILLS.map(([name, label]) =>
-    '<button data-drill="' + esc(name) + '"' + (disabled ? ' disabled' : '') + '>' + esc(label) + '</button>').join('');
-  document.querySelectorAll('[data-drill]').forEach(b => b.addEventListener('click', () => runDrill(b.dataset.drill)));
+let drillSel = 1;
+function renderDrills(running) {
+  $('drillcards').innerHTML = DRILLS.map(([name, label, desc], i) =>
+    '<button class="drillcard' + (i === drillSel ? ' sel' : '') + '" data-drillcard="' + i + '">' +
+    '<svg class="ic big"><use href="#i-play"/></svg><b>' + esc(label) + '</b><span>' + esc(desc) + '</span>' +
+    '<span class="go"><svg class="ic"><use href="#i-arrow"/></svg></span></button>').join('');
+  document.querySelectorAll('[data-drillcard]').forEach(b => b.addEventListener('click', () => { drillSel = Number(b.dataset.drillcard); renderDrills(false); }));
+  const [name, label, desc] = DRILLS[drillSel];
+  $('drilldetail').innerHTML =
+    '<div class="dlbl">Selected drill</div><div class="dtitle">' + esc(label) + '</div>' +
+    '<p class="small muted">' + esc(desc) + '</p><p class="mono small muted">' + esc(name) + '</p>' +
+    '<button class="btn" id="runbtn"' + (running ? ' disabled' : '') + '><svg class="ic"><use href="#i-play"/></svg>' + (running ? 'Running…' : 'Run drill') + '</button>' +
+    ' <span class="small" id="jobstatus">' + (running ? 'Sandbox booting…' : 'Fresh isolated sandbox per run.') + '</span>';
+  const rb = $('runbtn');
+  if (rb && !running) rb.addEventListener('click', () => runDrill(name));
 }
 async function runDrill(name) {
   renderDrills(true);
-  $('jobstatus').textContent = 'Running ' + name + ' in a fresh sandbox (about a minute)…';
+  $('jobstatus').textContent = 'Running in a fresh sandbox (about a minute)…';
   try {
     const res = await fetch('/api/drills/run', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hp-request': '1' }, body: JSON.stringify({ drill: name }) });
     const job = await res.json();
@@ -162,32 +806,27 @@ async function runDrill(name) {
       const j = await getJSON('/api/jobs/' + job.id);
       if (j.status === 'done') {
         clearInterval(timer);
-        $('jobstatus').textContent = name + ' finished: ' + j.records.filter(r => r.passed).length + ' passed, ' + j.records.filter(r => !r.passed).length + ' failed. Evidence added below.';
         renderDrills(false);
-        await Promise.all([loadSummary(), loadEvidence(), loadScore()]);
+        $('jobstatus').textContent = 'finished: ' + j.records.filter(r => r.passed).length + ' passed, ' + j.records.filter(r => !r.passed).length + ' failed - see Evidence.';
+        await Promise.all([loadSummary(), loadEvidence(), loadScore(), loadHandoverScore()]);
       } else if (j.status === 'error') {
         clearInterval(timer);
-        $('jobstatus').textContent = name + ' error: ' + j.error;
         renderDrills(false);
+        $('jobstatus').textContent = 'error: ' + j.error;
       }
     }, 2500);
   } catch (e) {
-    $('jobstatus').textContent = 'Could not start drill: ' + e.message;
     renderDrills(false);
+    $('jobstatus').textContent = 'Could not start drill: ' + e.message;
   }
 }
-
-$('filter').addEventListener('change', renderEvidence);
 $('scanbtn').addEventListener('click', async () => {
   $('scanout').textContent = ' scanning…';
   try {
     const s = await getJSON('/api/scan');
-    $('scanout').textContent = ' undocumented: ' + (s.undocumented_env_vars || []).join(', ') +
-      ' · backup gaps: ' + (s.backup_gaps || []).join(', ') +
-      ' · ask phrases: ' + (s.ask_phrases || []).map(x => x.value).join(', ');
+    $('scanout').textContent = ' undocumented: ' + (s.undocumented_env_vars || []).join(', ') + ' · backup gaps: ' + (s.backup_gaps || []).join(', ') + ' · ask phrases: ' + (s.ask_phrases || []).map(x => x.value).join(', ');
   } catch (e) { $('scanout').textContent = ' scan failed: ' + e.message; }
 });
-
 async function loadWhatif() {
   const g = await getJSON('/api/whatif');
   $('whatifnode').innerHTML = g.nodes.map(n => '<option>' + esc(n.id) + '</option>').join('');
@@ -200,20 +839,472 @@ $('whatifbtn').addEventListener('click', async () => {
     return;
   }
   $('whatifout').innerHTML = 'Removing <b>' + esc(node) + '</b> would break:<br>' + g.affected.map(a =>
-    '· <b>' + esc(a.workflow) + '</b> (via ' + esc(a.via) + ') — confirm with drill <span class="mono">' + esc(a.confirm_with) + '</span>').join('<br>');
+    '· <b>' + esc(a.workflow) + '</b> (via ' + esc(a.via) + ') - confirm with drill <span class="mono">' + esc(a.confirm_with) + '</span>').join('<br>');
 });
 
-async function loadHandoverScore() {
-  const s = await getJSON('/api/score');
-  const c = s.current.components || {};
-  $('scorebox').innerHTML = '<b style="font-size:1.8rem;font-family:ui-monospace,Consolas,monospace">' + esc(s.current.total) + '</b> / 100' +
-    ' <span class="muted small">workflows ' + esc(c.workflows ?? '–') + ' · faults ' + esc(c.faults ?? '–') + ' · documentation ' + esc(c.documentation ?? '–') + ' · backup ' + esc(c.backup ?? '–') + '</span>';
-  const hist = (s.history || []).slice(-14);
-  $('trend').innerHTML = hist.map(h => '<div title="' + esc(h.ts) + ': ' + esc(h.total) + '" style="background:#e8a33d;width:22px;height:' + Math.max(4, Number(h.total) || 0) + '%"></div>').join('') || '<span class="muted small">No history yet — run: handoffproof score</span>';
+let allEvidence = [];
+let evidencePage = 1;
+let evidencePageSize = Number(localStorage.getItem('hp-page-size')) || 10;
+let evidenceTotalPages = 1;
+async function loadEvidence() {
+  allEvidence = await getJSON('/api/evidence');
+  const drills = [...new Set(allEvidence.map(r => r.drill))].sort();
+  const current = $('filter').value;
+  $('filter').innerHTML = '<option value="">all drills</option>' + drills.map(d => '<option' + (d === current ? ' selected' : '') + '>' + esc(d) + '</option>').join('');
+  evidencePage = 1;
+  if ([...$('ev-page-size').options].some(o => Number(o.value) === evidencePageSize)) $('ev-page-size').value = String(evidencePageSize);
+  renderEvidence();
+  renderStartSteps();
+}
+function evidencePageNumbers(total, current) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = [...new Set([1, 2, current - 1, current, current + 1, total - 1, total].filter(p => p >= 1 && p <= total))].sort((a, b) => a - b);
+  const out = [];
+  for (let i = 0; i < pages.length; i++) {
+    if (i && pages[i] - pages[i - 1] > 1) out.push('…');
+    out.push(pages[i]);
+  }
+  return out;
+}
+function renderEvidencePagination(total) {
+  const start = total === 0 ? 0 : (evidencePage - 1) * evidencePageSize + 1;
+  const end = Math.min(total, evidencePage * evidencePageSize);
+  $('ev-range').textContent = total === 0 ? '0 records' : 'Showing ' + start + '–' + end + ' of ' + total + ' records';
+  $('ev-first').disabled = evidencePage <= 1;
+  $('ev-prev').disabled = evidencePage <= 1;
+  $('ev-next').disabled = evidencePage >= evidenceTotalPages;
+  $('ev-last').disabled = evidencePage >= evidenceTotalPages;
+  $('ev-pages').innerHTML = evidencePageNumbers(evidenceTotalPages, evidencePage).map(p => p === '…'
+    ? '<span class="pagination-ellipsis" aria-hidden="true">…</span>'
+    : '<button class="page-btn' + (p === evidencePage ? ' active' : '') + '" type="button" data-ev-page="' + p + '" aria-label="Page ' + p + '"' + (p === evidencePage ? ' aria-current="page"' : '') + '>' + p + '</button>').join('');
+  document.querySelectorAll('[data-ev-page]').forEach(b => b.addEventListener('click', () => { evidencePage = Number(b.dataset.evPage); renderEvidence(); }));
+}
+function renderEvidence() {
+  const f = $('filter').value;
+  const status = $('evstatus').value;
+  const q = ($('evq').value || '').toLowerCase();
+  const rows = allEvidence.filter(r => (!f || r.drill === f) && (!status || (status === 'passed') === !!r.passed) && (!q || (r.assertion + r.drill + r.workflow + r.evidence_id).toLowerCase().includes(q))).slice().reverse();
+  evidenceTotalPages = Math.max(1, Math.ceil(rows.length / evidencePageSize));
+  evidencePage = Math.min(Math.max(1, evidencePage), evidenceTotalPages);
+  const pageRows = rows.slice((evidencePage - 1) * evidencePageSize, evidencePage * evidencePageSize);
+  $('evcount').textContent = rows.length + ' records';
+  $('ev').innerHTML = pageRows.map(r =>
+    '<tr><td class="mono">' + esc(r.evidence_id) + '</td><td>' + esc(r.drill) + '</td><td>' + esc(r.workflow) + '</td><td>' + esc(r.assertion) + '</td><td>' + badge(r.passed, 'passed', 'failed') + '</td></tr>'
+  ).join('') || '<tr><td colspan="5" class="muted">No evidence matches. Run a drill.</td></tr>';
+  renderEvidencePagination(rows.length);
+}
+$('filter').addEventListener('change', () => { evidencePage = 1; renderEvidence(); });
+$('evstatus').addEventListener('change', () => { evidencePage = 1; renderEvidence(); });
+$('evq').addEventListener('input', () => { evidencePage = 1; renderEvidence(); });
+$('ev-page-size').addEventListener('change', () => { evidencePageSize = Number($('ev-page-size').value) || 10; localStorage.setItem('hp-page-size', String(evidencePageSize)); if ($('setting-page-size')) $('setting-page-size').value = String(evidencePageSize); evidencePage = 1; renderEvidence(); });
+$('ev-first').addEventListener('click', () => { evidencePage = 1; renderEvidence(); });
+$('ev-prev').addEventListener('click', () => { evidencePage = Math.max(1, evidencePage - 1); renderEvidence(); });
+$('ev-next').addEventListener('click', () => { evidencePage = Math.min(evidenceTotalPages, evidencePage + 1); renderEvidence(); });
+$('ev-last').addEventListener('click', () => { evidencePage = evidenceTotalPages; renderEvidence(); });
+function shareMsg(t) { $('share-status').textContent = t; }
+let shareReturnFocus = null;
+let slackState = { connected: false, can_connect: false, setup_reason: '' };
+function renderSlackState() {
+  const where = [slackState.team_name, slackState.channel].filter(Boolean).join(' · ');
+  if (slackState.connected) {
+    $('share-slack-title').textContent = 'Post to Slack';
+    $('share-slack-sub').textContent = 'Connected' + (where ? ' to ' + where : '') + '. Sends a counts-only summary.';
+  } else if (slackState.can_connect) {
+    $('share-slack-title').textContent = 'Add to Slack';
+    $('share-slack-sub').textContent = 'Connect a Slack workspace and choose the channel in Slack. Operators only.';
+  } else {
+    $('share-slack-title').textContent = 'Connect Slack';
+    $('share-slack-sub').textContent = slackState.setup_reason || 'Slack app credentials are not configured on the server.';
+  }
+  $('share-slack-disconnect').hidden = !(slackState.connected && slackState.source === 'oauth');
+}
+async function loadSlackState() {
+  try { slackState = await getJSON('/api/integrations/slack'); } catch { slackState = { connected: false, can_connect: false, setup_reason: 'Could not read Slack connection status.' }; }
+  renderSlackState();
+  renderSlackSettings();
+  renderStartSteps();
+  return slackState;
+}
+function openShare() {
+  const backdrop = $('share-backdrop');
+  if (backdrop.parentElement !== document.body) document.body.appendChild(backdrop);
+  shareReturnFocus = document.activeElement;
+  backdrop.hidden = false;
+  document.body.classList.add('modal-open');
+  shareMsg('');
+  loadSlackState();
+  requestAnimationFrame(() => $('share-copy').focus());
+}
+function closeShare() {
+  $('share-backdrop').hidden = true;
+  document.body.classList.remove('modal-open');
+  if (shareReturnFocus && shareReturnFocus.focus) shareReturnFocus.focus();
+}
+$('fullreport-btn').addEventListener('click', openShare);
+$('share-close').addEventListener('click', closeShare);
+$('share-x').addEventListener('click', closeShare);
+$('share-backdrop').addEventListener('click', (e) => { if (e.target.id === 'share-backdrop') closeShare(); });
+addEventListener('keydown', (e) => {
+  const backdrop = $('share-backdrop');
+  if (backdrop.hidden) return;
+  if (e.key === 'Escape') { closeShare(); return; }
+  if (e.key !== 'Tab') return;
+  const focusable = [...backdrop.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(el => !el.hidden && el.offsetParent !== null);
+  if (!focusable.length) return;
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+async function mintShareLink() {
+  const r = await fetch('/api/share', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hp-request': '1' }, body: '{}' });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || ('status ' + r.status));
+  return location.origin + '/report?s=' + j.share;
+}
+$('share-copy').addEventListener('click', async () => {
+  shareMsg('Making a read-only share link (valid 24h)…');
+  try {
+    const url = await mintShareLink();
+    const done = () => shareMsg('Link copied. Read-only, valid 24h - safe to send to anyone.');
+    if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(url).then(done, () => shareMsg('Copy failed. Link: ' + url));
+    else shareMsg('Copy not available. Link: ' + url);
+  } catch (e) { shareMsg('Could not make a share link: ' + e.message); }
+});
+$('share-pdf').addEventListener('click', () => {
+  const token = new URLSearchParams(location.search).get('token');
+  const url = '/report' + (token ? '?token=' + encodeURIComponent(token) : '');
+  shareMsg('Opening the report in a new tab - use its Download PDF button to save the themed PDF.');
+  window.open(url, '_blank', 'noopener');
+});
+$('share-slack').addEventListener('click', async () => {
+  if (!slackState.connected) {
+    const s = await loadSlackState();
+    if (s.can_connect) { location.href = s.connect_url || '/api/integrations/slack/connect'; return; }
+    shareMsg((s.setup_reason || 'Slack is not configured on the server.') + ' See README: create a Slack app, enable Incoming Webhooks, add the redirect URL shown there, then restart this server with the Slack credentials.');
+    return;
+  }
+  shareMsg('Posting summary to Slack…');
+  try {
+    const r = await fetch('/api/integrations/slack', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hp-request': '1' }, body: '{}' });
+    const j = await r.json();
+    shareMsg(r.ok ? 'Posted to Slack.' : 'Slack: ' + (j.error || 'failed'));
+  } catch (e) { shareMsg('Slack post failed.'); }
+});
+$('share-slack-disconnect').addEventListener('click', async () => {
+  shareMsg('Disconnecting Slack…');
+  try {
+    const r = await fetch('/api/integrations/slack', { method: 'DELETE', headers: { 'x-hp-request': '1' } });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'failed');
+    await loadSlackState();
+    shareMsg('Slack disconnected. The stored webhook was deleted from this server.');
+  } catch (e) { shareMsg('Could not disconnect Slack: ' + e.message); }
+});
+const slackResult = new URLSearchParams(location.search).get('slack');
+if (slackResult === 'connected' || slackResult === 'error') {
+  if (location.hash === '#settings') {
+    showPage('settings');
+    history.replaceState(null, '', '#settings');
+  } else {
+    showPage('evidence');
+    openShare();
+    setTimeout(() => shareMsg(slackResult === 'connected' ? 'Slack connected. You can now post the counts-only summary.' : 'Slack connection did not complete. Check the Slack app redirect URL and server credentials, then try Add to Slack again.'), 50);
+    history.replaceState(null, '', '#evidence');
+  }
+}
+
+async function loadGitHubState() {
+  try { githubState = await getJSON('/api/integrations/github'); } catch { githubState = { connected: false, can_connect: false, setup_reason: 'Could not read GitHub connection status.' }; }
+  renderGitHubSettings();
+  renderStartSteps();
+  return githubState;
+}
+function renderStartSteps() {
+  const el = $('startsteps');
+  if (!el) return;
+  const has = (drill) => allEvidence.some(r => r.drill === drill);
+  const integrationsDone = !!((slackState && slackState.connected) || (githubState && githubState.connected));
+  const steps = [
+    { n: 1, title: 'Check readiness', text: 'See the Handover Score, planted faults, and what is already proven.', state: scoreState ? 'Current score: ' + ((scoreState.current || {}).total ?? '–') + '/100.' : 'Loading the current score…', done: !!scoreState, action: 'overview', cta: 'Open Readiness' },
+    { n: 2, title: 'Run the baseline rehearsal', text: 'Prove the healthy path first: register, book, and receive the confirmation email.', state: has('fresh_deployment_baseline') ? 'Baseline evidence is on record.' : 'No baseline run yet.', done: has('fresh_deployment_baseline'), action: 'baseline', cta: 'Run baseline' },
+    { n: 3, title: 'Rehearse the developer exit', text: 'Withdraw the mail token and watch whether the failure is caught loudly.', state: has('withdrawn_test_token') ? 'Withdrawn-token evidence is on record.' : 'Not rehearsed yet.', done: has('withdrawn_test_token'), action: 'fault', cta: 'Run withdrawn-token drill' },
+    { n: 4, title: 'Review evidence and findings', text: 'Open the records behind each verdict, then read the model diagnosis with its evidence and source citations.', state: allEvidence.length ? allEvidence.length + ' evidence records available.' : 'No evidence yet - run a drill first.', done: allEvidence.length > 0, action: 'evidence', cta: 'Review evidence' },
+    { n: 5, title: 'Share the handover report', text: 'Copy a 24-hour read-only link, download the themed PDF, or post the summary to Slack.', state: slackState && slackState.connected ? 'Slack is connected for posting.' : 'Share links and PDF work without Slack.', done: allEvidence.length > 0, action: 'share', cta: 'Share report' },
+    { n: 6, title: 'Connect your team tools', text: 'Add Slack for summaries and GitHub for the remediation repository. Operators manage integrations in Settings.', state: integrationsDone ? 'At least one integration is connected.' : 'No integration connected yet.', done: integrationsDone, action: 'settings', cta: 'Open Settings' },
+  ];
+  el.innerHTML = steps.map(s =>
+    '<div class="step' + (s.done ? ' done' : '') + '"><div class="step-num">' + (s.done ? '✓' : s.n) + '</div>' +
+    '<div><h3>' + esc(s.title) + '</h3><p>' + esc(s.text) + '</p><div class="step-state">' + esc(s.state) + '</div></div>' +
+    '<button class="btn ' + (s.done ? 'ghost' : '') + '" type="button" data-step-action="' + s.action + '">' + esc(s.cta) + '</button></div>').join('');
+  el.querySelectorAll('[data-step-action]').forEach(b => b.addEventListener('click', () => {
+    const a = b.dataset.stepAction;
+    if (a === 'baseline' || a === 'fault') { drillSel = a === 'baseline' ? 0 : 1; renderDrills(false); gotoPage('drills'); }
+    else if (a === 'share') { gotoPage('evidence'); setTimeout(openShare, 60); }
+    else gotoPage(a);
+  }));
+}
+function settingRow(k, v) { return '<div class="setting-row"><span class="k">' + esc(k) + '</span><span class="v">' + esc(v || '—') + '</span></div>'; }
+function renderSlackSettings() {
+  const el = $('slack-settings-body');
+  if (!el) return;
+  const s = slackState || {};
+  if (s.connected) {
+    el.innerHTML = settingRow('Status', 'Connected') + settingRow('Workspace', s.team_name) + settingRow('Channel', s.channel) + settingRow('Connected by', s.source === 'oauth' ? 'Add to Slack (OAuth)' : 'Server environment') +
+      '<div class="btnrow"><button class="btn" id="settings-slack-post" type="button">Post summary</button>' + (s.source === 'oauth' ? '<button class="btn ghost" id="settings-slack-disconnect" type="button">Disconnect</button>' : '') + '</div><div class="small muted" id="settings-slack-msg" role="status"></div>';
+  } else if (s.can_connect) {
+    el.innerHTML = settingRow('Status', 'Not connected') + '<p class="small muted">You will approve in Slack and choose the channel there. No webhook URL is typed into HandoffProof.</p><div class="btnrow"><button class="btn" id="settings-slack-connect" type="button">Add to Slack</button></div>';
+  } else {
+    el.innerHTML = settingRow('Status', 'Not connected') + '<p class="small muted">' + esc(s.setup_reason || 'Slack is not configured on the server.') + '</p>' +
+      '<div class="codebox">Redirect URL: ' + esc(s.redirect_url || (location.origin + '/api/integrations/slack/callback')) + '<br>Server env: HANDOFF_SLACK_CLIENT_ID · HANDOFF_SLACK_CLIENT_SECRET · HANDOFF_PUBLIC_URL</div>' +
+      (s.operator ? '' : '<p class="small muted">Ask a console operator to finish the server setup and connect Slack.</p>');
+  }
+}
+function renderGitHubSettings() {
+  const el = $('github-settings-body');
+  if (!el) return;
+  const g = githubState || {};
+  if (g.connected) {
+    const repoOptions = [...new Set([g.repository, ...githubRepos.map(r => r.full_name)].filter(Boolean))];
+    el.innerHTML = settingRow('Status', 'Connected') + settingRow('Account', g.name ? g.name + ' (@' + g.login + ')' : '@' + g.login) + settingRow('Repository', g.repository) + settingRow('Branch', g.branch) +
+      '<div class="field"><label for="github-repo">Repository for remediation work</label><select id="github-repo">' + (repoOptions.length ? repoOptions.map(r => '<option' + (r === g.repository ? ' selected' : '') + '>' + esc(r) + '</option>').join('') : '<option value="">Load repositories to choose</option>') + '</select><span class="hint">Only repositories this GitHub connection can access are accepted.</span></div>' +
+      '<div class="field"><label for="github-branch">Default branch</label><input id="github-branch" type="text" value="' + esc(g.branch || '') + '" placeholder="main"></div>' +
+      '<div class="btnrow"><button class="btn" id="settings-github-repos" type="button">Load repositories</button><button class="btn" id="settings-github-save" type="button">Save repository</button>' +
+      (g.repository_url ? '<a class="btn ghost" href="' + esc(g.repository_url) + '" target="_blank" rel="noopener">Open repository</a><a class="btn ghost" href="' + esc(g.repository_url) + '/actions" target="_blank" rel="noopener">Actions</a>' : '') +
+      '<button class="btn ghost" id="settings-github-disconnect" type="button">Disconnect</button></div><div class="small muted" id="settings-github-msg" role="status"></div>';
+  } else if (g.can_connect) {
+    el.innerHTML = settingRow('Status', 'Not connected') + '<p class="small muted">Connect GitHub, then choose the repository used for remediation work. The token stays on the server.</p><div class="btnrow"><button class="btn" id="settings-github-connect" type="button">Connect GitHub</button></div>';
+  } else {
+    el.innerHTML = settingRow('Status', 'Not connected') + '<p class="small muted">' + esc(g.setup_reason || 'GitHub is not configured on the server.') + '</p>' +
+      '<div class="codebox">Authorization callback: ' + esc(g.redirect_url || (location.origin + '/api/integrations/github/callback')) + '<br>Server env: HANDOFF_GITHUB_CLIENT_ID · HANDOFF_GITHUB_CLIENT_SECRET · HANDOFF_PUBLIC_URL</div>' +
+      (g.operator ? '' : '<p class="small muted">Ask a console operator to finish the server setup and connect GitHub.</p>');
+  }
+}
+function renderServerSettings() {
+  const el = $('server-settings-body');
+  if (!el) return;
+  const s = summaryState || {};
+  el.innerHTML = settingRow('Model', s.model || 'not set') + settingRow('Evidence records', s.records ?? '—') + settingRow('Drill runs', s.runs ?? '—') + settingRow('Manifest', s.manifest ? String(s.manifest).slice(0, 12) + '…' : '—') + settingRow('Slack app', slackState && slackState.configured ? 'configured' : 'not configured') + settingRow('GitHub app', githubState && githubState.configured ? 'configured' : 'not configured');
+}
+async function loadSettings() {
+  if ($('setting-page-size')) $('setting-page-size').value = String(evidencePageSize);
+  await Promise.all([loadSlackState(), loadGitHubState()]);
+  renderServerSettings();
+}
+document.addEventListener('click', async (e) => {
+  const id = e.target && e.target.id;
+  if (id === 'settings-slack-connect') location.href = '/api/integrations/slack/connect?from=settings';
+  if (id === 'settings-github-connect') location.href = '/api/integrations/github/connect';
+  if (id === 'settings-slack-post') {
+    const m = $('settings-slack-msg'); if (m) m.textContent = 'Posting…';
+    try { const r = await fetch('/api/integrations/slack', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hp-request': '1' }, body: '{}' }); const j = await r.json(); if (m) m.textContent = r.ok ? 'Posted to Slack.' : 'Slack: ' + (j.error || 'failed'); } catch { if (m) m.textContent = 'Slack post failed.'; }
+  }
+  if (id === 'settings-slack-disconnect') {
+    try { const r = await fetch('/api/integrations/slack', { method: 'DELETE', headers: { 'x-hp-request': '1' } }); if (!r.ok) throw new Error('failed'); await loadSlackState(); } catch { shareMsg(''); }
+  }
+  if (id === 'settings-github-disconnect') {
+    const m = $('settings-github-msg');
+    try { const r = await fetch('/api/integrations/github', { method: 'DELETE', headers: { 'x-hp-request': '1' } }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'failed'); githubRepos = []; await loadGitHubState(); } catch (err) { if (m) m.textContent = 'Could not disconnect GitHub: ' + err.message; }
+  }
+  if (id === 'settings-github-repos') {
+    const m = $('settings-github-msg'); if (m) m.textContent = 'Loading repositories…';
+    try { const j = await getJSON('/api/integrations/github/repositories'); githubRepos = j.repositories || []; renderGitHubSettings(); } catch (err) { if (m) m.textContent = 'Could not load repositories.'; }
+  }
+  if (id === 'settings-github-save') {
+    const m = $('settings-github-msg'); if (m) m.textContent = 'Saving…';
+    try {
+      const r = await fetch('/api/integrations/github/repository', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hp-request': '1' }, body: JSON.stringify({ repository: $('github-repo').value, branch: $('github-branch').value }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || 'failed');
+      await loadGitHubState(); const m2 = $('settings-github-msg'); if (m2) m2.textContent = 'Repository saved.';
+    } catch (err) { if (m) m.textContent = 'Could not save repository: ' + err.message; }
+  }
+});
+$('setting-page-size').addEventListener('change', () => { evidencePageSize = Number($('setting-page-size').value) || 10; localStorage.setItem('hp-page-size', String(evidencePageSize)); if ($('ev-page-size')) $('ev-page-size').value = String(evidencePageSize); evidencePage = 1; renderEvidence(); });
+$('setting-open-report').addEventListener('click', () => { gotoPage('evidence'); setTimeout(openShare, 60); });
+const githubResult = new URLSearchParams(location.search).get('github');
+if (githubResult === 'connected' || githubResult === 'error') {
+  showPage('settings');
+  history.replaceState(null, '', '#settings');
+}
+
+let diagState = { findings: [] };
+let insightFilter = 'all';
+function insightClassTag(cls) {
+  return cls === 'observed_failure' ? 'fail' : cls === 'observed_pass' ? 'pass' : cls === 'inferred_risk' ? 'risk' : 'untested';
+}
+function renderInsightStats() {
+  const fs = diagState.findings || [];
+  const count = (cls) => fs.filter(f => f.classification === cls).length;
+  const cited = fs.filter(f => (f.source_references || []).length > 0).length;
+  $('insightstats').innerHTML = [
+    [fs.length, 'findings', ''],
+    [count('observed_failure'), 'observed failures', ''],
+    [count('inferred_risk') + count('untested_dependency'), 'risks + untested', ''],
+    [cited + '/' + fs.length, 'with source citations', ' purple'],
+  ].map(([n, l, cls]) => '<div class="stat' + cls + '"><div class="v">' + esc(n) + '</div><div class="l">' + esc(l) + '</div></div>').join('');
+}
+function renderInsights() {
+  const q = ($('insightq').value || '').toLowerCase();
+  const fs = (diagState.findings || []).filter(f =>
+    (insightFilter === 'all' || f.classification === insightFilter) &&
+    (!q || (f.finding_id + ' ' + f.workflow + ' ' + f.root_cause + ' ' + f.business_impact).toLowerCase().includes(q)));
+  $('diag').innerHTML = fs.map(f => {
+    const conf = Math.round((Number(f.confidence) || 0) * 100);
+    const sources = f.source_references || [];
+    const chain = f.causal_chain || [];
+    const alternatives = f.alternatives_considered || [];
+    const logs = f.log_excerpts || [];
+    return '<article class="insight-finding">' +
+      '<div class="insight-finding-head"><span class="tag ' + insightClassTag(f.classification) + '">' + esc(f.classification) + '</span><h3>' + esc(f.finding_id) + '</h3><span class="muted small">' + esc(f.workflow) + '</span></div>' +
+      '<div class="insight-meta">' +
+        '<div class="meta-cell"><div class="k">Workflow</div><div class="v">' + esc(f.workflow || '—') + '</div></div>' +
+        '<div class="meta-cell"><div class="k">Confidence</div><div class="v">' + conf + '%</div><div class="confidence-track"><div class="confidence-fill" style="width:' + conf + '%"></div></div></div>' +
+        '<div class="meta-cell"><div class="k">Source</div><div class="v">' + (sources.length ? sources.map(s => '<code>' + esc(s) + '</code>').join('<br>') : '<span class="muted">Not provided — citation missing</span>') + '</div></div>' +
+      '</div>' +
+      '<div class="insight-columns"><div><h4>Root cause</h4><p>' + esc(f.root_cause || '—') + '</p></div><div><h4>Business impact</h4><p>' + esc(f.business_impact || '—') + '</p></div></div>' +
+      '<div class="citation-list"><span class="muted small">Evidence:</span>' + ((f.evidence_ids || []).map(id => '<button type="button" data-evidence-link="' + esc(id) + '">' + esc(id) + '</button>').join('') || '<span class="muted small">none cited</span>') + '</div>' +
+      ((chain.length || alternatives.length || logs.length) ? '<details><summary>Reasoning and logs</summary>' +
+        (chain.length ? '<p><b>Causal chain</b></p><ul>' + chain.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '') +
+        (alternatives.length ? '<p><b>Alternatives considered</b></p><ul>' + alternatives.map(x => '<li>' + esc(typeof x === 'string' ? x : JSON.stringify(x)) + '</li>').join('') + '</ul>' : '') +
+        (logs.length ? '<p><b>Log excerpts</b></p>' + logs.map(x => '<div class="codebox">' + esc(x) + '</div>').join('') : '') + '</details>' : '') +
+      '</article>';
+  }).join('') || '<p class="empty">No findings match this view. Run a diagnosed drill or clear the filter.</p>';
+  document.querySelectorAll('[data-evidence-link]').forEach(b => b.addEventListener('click', () => {
+    $('evq').value = b.dataset.evidenceLink;
+    evidencePage = 1;
+    renderEvidence();
+    gotoPage('evidence');
+  }));
+}
+document.querySelectorAll('[data-ifilter]').forEach(b => b.addEventListener('click', () => {
+  insightFilter = b.dataset.ifilter;
+  document.querySelectorAll('[data-ifilter]').forEach(x => x.classList.toggle('active', x === b));
+  renderInsights();
+}));
+$('insightq').addEventListener('input', renderInsights);
+$('insights-open-report').addEventListener('click', () => { gotoPage('evidence'); setTimeout(openShare, 60); });
+const sampleProfile = {
+  version: 1, id: 'my-app', name: 'My application', compose_file: 'docker-compose.yml', app_service: 'app', probe_runtime: 'curl',
+  services: [{ name: 'app', port: 3000, health_path: '/health' }],
+  env: [{ name: 'DATABASE_URL', required: true }, { name: 'MAIL_API_TOKEN', required: false, secret: true }],
+  credentials: [{ name: 'mail', env_var: 'MAIL_API_TOKEN' }],
+  workflows: [
+    { name: 'health', depends_on: [], steps: [{ name: 'health endpoint responds', type: 'http', service: 'app', method: 'GET', path: '/health', expected_status: 200 }] },
+    { name: 'confirmation_email', depends_on: ['MAIL_API_TOKEN'], steps: [{ name: 'confirmation workflow responds', type: 'http', service: 'app', method: 'GET', path: '/health', expected_status: 200 }] },
+  ],
+};
+if ($('app-profile') && !$('app-profile').value) $('app-profile').value = JSON.stringify(sampleProfile, null, 2);
+function syncAppSourceFields() {
+  const github = $('app-source-kind').value === 'github';
+  $('app-local-wrap').hidden = github;
+  $('app-github-wrap').hidden = !github;
+}
+if ($('app-source-kind')) $('app-source-kind').addEventListener('change', syncAppSourceFields);
+syncAppSourceFields();
+function parseEnvText(text) {
+  const out = {};
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || t.startsWith('#')) continue;
+    const i = t.indexOf('=');
+    if (i < 1) throw new Error('Environment values must use KEY=value, one per line.');
+    out[t.slice(0, i).trim()] = t.slice(i + 1).trim();
+  }
+  return out;
+}
+async function loadApplications() {
+  const el = $('applications-list');
+  if (!el) return;
+  try {
+    const j = await getJSON('/api/applications');
+    const apps = j.applications || [];
+    el.innerHTML = apps.map(a =>
+      '<article class="insight-finding"><div class="insight-finding-head"><h3>' + esc(a.name || a.id) + '</h3><span class="muted small">' + esc(a.id) + '</span></div>' +
+      settingRow('Source', a.source_kind === 'github' ? (a.repository + '@' + (a.branch || 'main')) : 'Local folder') +
+      settingRow('Workflows', (a.profile.workflows || []).map(w => w.name).join(', ')) +
+      settingRow('Environment', (a.env_names || []).length + ' encrypted values') +
+      settingRow('Last run', a.last_run ? (a.last_kind + ' · ' + a.last_run) : 'Not run yet') +
+      '<div class="field"><label>Run kind</label><select id="run-kind-' + esc(a.id) + '"><option value="fresh_deployment_baseline">Baseline</option><option value="withdrawn_test_token">Withdraw credential</option><option value="missing_configuration">Missing configuration</option><option value="incomplete_backup">Incomplete backup</option></select></div>' +
+      '<div class="field"><label>Fault target</label><input id="run-target-' + esc(a.id) + '" type="text" placeholder="credential name or env var"><span class="hint">For credential runs use a profile credential name; for missing configuration use an env var name.</span></div>' +
+      '<div class="btnrow"><button class="btn" type="button" data-app-action="run" data-app-id="' + esc(a.id) + '">Run rehearsal</button><button class="btn ghost" type="button" data-app-action="validate" data-app-id="' + esc(a.id) + '">Validate</button><button class="btn ghost" type="button" data-app-action="scan" data-app-id="' + esc(a.id) + '">Scan</button><button class="btn ghost" type="button" data-app-action="delete" data-app-id="' + esc(a.id) + '">Delete</button></div>' +
+      '<div class="small muted" id="app-msg-' + esc(a.id) + '" role="status"></div></article>').join('') ||
+      '<p class="empty">No applications yet. Import the sample profile with your own Compose application to start.</p>';
+  } catch (e) { el.innerHTML = '<p class="empty">Could not load applications: ' + esc(e.message) + '</p>'; }
+}
+if ($('app-create')) $('app-create').addEventListener('click', async () => {
+  const msg = $('app-create-msg');
+  try {
+    msg.textContent = 'Importing and validating…';
+    const profile = JSON.parse($('app-profile').value);
+    const body = { name: $('app-name').value, source_kind: $('app-source-kind').value, local_path: $('app-local-path').value, repository: $('app-repository').value, branch: $('app-branch').value, profile, env_values: parseEnvText($('app-env').value) };
+    const r = await fetch('/api/applications', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hp-request': '1' }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'import failed');
+    msg.textContent = 'Application imported. Validate it, then run the baseline.';
+    await loadApplications();
+  } catch (e) { msg.textContent = 'Could not import application: ' + e.message; }
+});
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest && e.target.closest('[data-app-action]');
+  if (!b) return;
+  const id = b.dataset.appId;
+  const msg = $('app-msg-' + id);
+  const setMsg = (t) => { if (msg) msg.textContent = t; };
+  try {
+    if (b.dataset.appAction === 'delete') {
+      if (!confirm('Delete this imported application and its server-side source copy?')) return;
+      const r = await fetch('/api/applications/' + encodeURIComponent(id), { method: 'DELETE', headers: { 'x-hp-request': '1' } });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || 'delete failed');
+      await loadApplications(); return;
+    }
+    if (b.dataset.appAction === 'validate') {
+      setMsg('Validating…');
+      const r = await fetch('/api/applications/' + encodeURIComponent(id) + '/validate', { method: 'POST', headers: { 'x-hp-request': '1' } });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || 'validation failed');
+      setMsg('Profile and Compose are valid. Run the baseline next.'); return;
+    }
+    if (b.dataset.appAction === 'scan') {
+      setMsg('Scanning…');
+      const j = await getJSON('/api/applications/' + encodeURIComponent(id) + '/scan');
+      const s = j.scan || {};
+      setMsg('Scan complete: ' + ((s.env_vars || []).length) + ' env vars, ' + ((s.credentials || []).length) + ' credentials, ' + ((s.data_stores || []).length) + ' data stores.'); return;
+    }
+    if (b.dataset.appAction === 'run') {
+      const kind = $('run-kind-' + id).value;
+      const target = $('run-target-' + id).value.trim();
+      setMsg('Running rehearsal. This can take several minutes…');
+      b.disabled = true;
+      const r = await fetch('/api/applications/' + encodeURIComponent(id) + '/run', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hp-request': '1' }, body: JSON.stringify({ kind, target }) });
+      const j = await r.json(); b.disabled = false;
+      if (!r.ok && !j.records) throw new Error(j.error || 'run failed');
+      const passed = (j.records || []).filter(x => x.passed).length;
+      setMsg('Run ' + (j.run_id || '') + ' finished: ' + passed + '/' + ((j.records || []).length) + ' assertions passed. Results are in Evidence.' + (j.warning ? ' Warning: ' + j.warning : ''));
+      await Promise.all([loadApplications(), loadEvidence(), loadSummary()]);
+    }
+  } catch (err) { setMsg('Action failed: ' + err.message); b.disabled = false; }
+});
+
+async function loadDiag() {
+  try {
+    diagState = await getJSON('/api/diagnosis');
+    renderInsightStats();
+    renderInsights();
+  } catch {
+    diagState = { findings: [] };
+    renderInsightStats();
+    $('diag').innerHTML = '<p class="empty">No diagnosis yet. Run a diagnosed drill, then return here to read the findings.</p>';
+  }
+  try {
+    const a = await getJSON('/api/assessment');
+    const limits = Array.isArray(a.limitations) ? a.limitations : (a.limitations ? [a.limitations] : []);
+    const unchanged = a.acceptance_integrity && a.acceptance_integrity.unchanged;
+    $('assess').innerHTML = '<p class="assessment-summary">' + esc(a.summary || 'No assessment summary yet.') + '</p>' +
+      settingRow('Acceptance integrity', unchanged ? 'unchanged' : 'CHANGED') +
+      (limits.length ? '<h3 style="margin-top:18px">Limitations</h3><ul class="limit-list">' + limits.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<p class="small muted">No limitations recorded.</p>');
+  } catch { $('assess').innerHTML = '<p class="empty">No assessment yet. It appears after the model assessment is saved.</p>'; }
 }
 
 renderDrills(false);
-Promise.all([loadSummary(), loadEvidence(), loadScore(), loadDiag(), loadWhatif(), loadHandoverScore()]).catch(e => { $('hdr').textContent = 'load error: ' + e.message; });
+Promise.all([loadSummary(), loadEvidence(), loadScore(), loadDiag(), loadWhatif(), loadHandoverScore(), loadSettings(), loadApplications()]).catch(e => { $('hdr').textContent = 'load error: ' + e.message; });
 </script>
 </body>
 </html>
