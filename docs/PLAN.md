@@ -1,4 +1,4 @@
-# HandoffProof — 3-day build plan (Step 1)
+# HandoffProof - 3-day build plan (Step 1)
 
 Status: APPROVED 2026-11-01. Day 2 closed live. Power-ups F1–F6 done (CI gate, verifier, what-if, benchmark, remediation PRs, Handover Score). Next: Day 3 (video, submission). Decisions in `docs/DECISIONS.md`.
 Date: 2026-11-01. Deadline: Nov 4, 9:00 PM ET. Submit target: Nov 4, ~3:00 PM ET (6+ hours early).
@@ -33,17 +33,17 @@ exactly that. Same models, same bearer auth, same per-token cost on all three pr
 | Item | Verified value |
 | --- | --- |
 | Base URL | `https://api.meta.ai/v1` |
-| Responses | `POST /v1/responses` — recommended default for new agentic/coding work |
-| Chat Completions | `POST /v1/chat/completions` — drop-in; no reasoning carryover; no search grounding / tool search |
-| Messages | `POST /v1/messages` — Anthropic-compatible; point SDK at base host `https://api.meta.ai`; stateless |
+| Responses | `POST /v1/responses` - recommended default for new agentic/coding work |
+| Chat Completions | `POST /v1/chat/completions` - drop-in; no reasoning carryover; no search grounding / tool search |
+| Messages | `POST /v1/messages` - Anthropic-compatible; point SDK at base host `https://api.meta.ai`; stateless |
 | Auth | `Authorization: Bearer $MODEL_API_KEY`; official env var `MODEL_API_KEY`, key from the Model API dashboard |
 | Models | `muse-spark-1.3` (latest, "recommended for new work", agentic-tuned); `muse-wonder-1.0` (most capable, same requests as Spark); `muse-spark-1.2` / `1.1` previous; `-contributor` variants discounted |
-| Unknown model | `404` + `code: model_not_found`; a `503` on model lookup is inconclusive — retry |
+| Unknown model | `404` + `code: model_not_found`; a `503` on model lookup is inconclusive - retry |
 | Structured output | Chat: `response_format` with `type: "json_schema"` + `json_schema`. Responses: `text.format`. A param from the other endpoint does not configure structured output (`text.format` on Chat returns 400). Decoding is constrained, output guaranteed to conform. Recursive `$ref` schemas rejected |
 | Sampling | `temperature` 0–2, default 1.0. `top_p` in (0,1], default 1.0, `0` returns 400. Spark is tuned for the defaults; adjust one, not both; prefer clearer instructions over lowering temperature |
 | Output limits | Responses: `max_output_tokens`, min 16, covers reasoning + visible output, shares the context window. Chat: `max_completion_tokens` (`max_tokens` alias accepted). `max_output_tokens` is rejected on Chat |
 | Reasoning | `reasoning.effort` (Responses) / `reasoning_effort` (Chat): `none`, `minimal`, `low`, `medium`, `high`, `xhigh`. On by default. `none` returns 400 on Muse Spark |
-| Tools | `function` or `custom` tools (`custom` is Responses-only). Responses: flat format, `function_call` items + `function_call_output` with `previous_response_id`. Chat: nested `function` key, `tool_calls` array + `tool` messages. Names must match `^[a-zA-Z0-9_.-]+$` with at most one dot. `strict` defaults false. `parallel_tool_calls` defaults true. `max_tool_calls` caps built-in tools only — bound function calls in our own loop. `tool_choice` must be `"auto"`. Always validate tool args client-side |
+| Tools | `function` or `custom` tools (`custom` is Responses-only). Responses: flat format, `function_call` items + `function_call_output` with `previous_response_id`. Chat: nested `function` key, `tool_calls` array + `tool` messages. Names must match `^[a-zA-Z0-9_.-]+$` with at most one dot. `strict` defaults false. `parallel_tool_calls` defaults true. `max_tool_calls` caps built-in tools only - bound function calls in our own loop. `tool_choice` must be `"auto"`. Always validate tool args client-side |
 | Instructions | Responses `instructions` is developer-level and per-request only; resend `instructions`, `tools`, `reasoning.effort` on every turn |
 | Usage | Responses: `{input_tokens, output_tokens, total_tokens, input_tokens_details: {cached_tokens}, output_tokens_details: {reasoning_tokens}}`. Preflight: `POST /v1/responses/input_tokens` |
 | Errors | `type`: `invalid_request_error` (4xx), `authentication_error` (401), `rate_limit_error` (429), `server_error` (5xx). Branch on status + `type`, not message. 429: exponential backoff with jitter, honor `Retry-After`. 500: retry with backoff. 503 (`server_shutting_down`, `service_overloaded`, `backend_unavailable`): always retryable, honor `Retry-After` |
@@ -57,7 +57,7 @@ SDKs, same wire format). Config: `META_API_KEY` with fallback to official
 overrides the base. Record all of this in `docs/DECISIONS.md` on Day 2.
 
 Not verified in this pass (do not rely on): per-model context-window and max-output
-caps (model-dependent — handle 400s and read `GET /v1/models` at runtime); pricing and
+caps (model-dependent - handle 400s and read `GET /v1/models` at runtime); pricing and
 quota numbers; hackathon submit-page rules (re-read at submission per
 hp-submission-checklist).
 
@@ -96,18 +96,18 @@ Nothing below was changed in Step 1. Each fix needs user approval at its build s
 | # | JSON spec says | Repo says | Resolution |
 | --- | --- | --- | --- |
 | C1 | `protected_paths`: `/acceptance/**`, `/drills/**`, `/evidence/**`, `/controller/**`, `/manifest.sha256` | `prompts/README.md` + skill: `acceptance/**`, `internal/controller/**`, `internal/drills/**`, `evidence/**`, `.manifest.sha256` (+ `scripts/manifest.sh` in skill and manifest) | JSON paths are wrong (missing `internal/` prefix and the manifest's leading dot). Treat the skill list as normative; fix the JSON only with approval |
-| C2 | — | `scripts/manifest.sh` hashes `acceptance internal/controller internal/drills scripts/manifest.sh` — omits `evidence/`; `AGENTS.md` invariants omit `scripts/manifest.sh` | Keep `evidence/` out of the manifest (runtime output, gitignored) but the controller still rejects repair diffs touching it. Add `scripts/manifest.sh` to the `AGENTS.md` list for consistency (Day 1, with approval) |
+| C2 | - | `scripts/manifest.sh` hashes `acceptance internal/controller internal/drills scripts/manifest.sh` - omits `evidence/`; `AGENTS.md` invariants omit `scripts/manifest.sh` | Keep `evidence/` out of the manifest (runtime output, gitignored) but the controller still rejects repair diffs touching it. Add `scripts/manifest.sh` to the `AGENTS.md` list for consistency (Day 1, with approval) |
 | C3 | Manifest rule implies hashing `evidence/` | `.gitignore` ignores `evidence/*` except `.gitkeep` | Manifest covers committed files only; runtime evidence integrity comes from controller-written records plus the report's hash footer |
-| C4 | — | `internal/evidence/` (defines `Record` + classes) is in no protected list | Add `internal/evidence/**` to the protected set — altering it would break verdict integrity (Day 1, with approval) |
+| C4 | - | `internal/evidence/` (defines `Record` + classes) is in no protected list | Add `internal/evidence/**` to the protected set - altering it would break verdict integrity (Day 1, with approval) |
 | C5 | R7 + example: report injections as `prompt_injection_attempt` | Output schemas and `internal/evidence/evidence.go` have only the 4 classes | Do not shoehorn into the 4 classes. Log as a separate controller security event and surface it in the report (schema defined Day 2) |
 | C6 | Workflows: registration, booking, confirmation_email | hp-write-acceptance-tests adds `documents.spec.ts`; scaffold adds `POST /uploads` | Uploads/storage is drill support for `incomplete_backup` assertions, not a 4th customer workflow. Keep 3 workflows + recovery spec |
 | C7 | Baselines: `static_scan_only`, `fresh_deployment_only`, `checklist_only` | hp-eval-results-table arms drop `checklist_only` | Run the 2 automated arms + full; `checklist_only` only if time permits and as a labeled target |
 | C8 | Params mix protocols: `temperature 0.1` + `top_p 0.9` (docs: one, not both; prefer 1.0 for Spark) and `max_output_tokens` (Responses-only) + `response_format` (Chat-only) | hp-meta-api-client: temperature 0.1 | Responses API; omit temperature and top_p (defaults); `max_output_tokens 4096`; schemas via `text.format`. Revisit only if eval shows unstable output |
 | C9 | `model_id: ${META_MODEL_ID}` | Official key env var is `MODEL_API_KEY`, repo uses `META_API_KEY` | Read `META_API_KEY`, fall back to `MODEL_API_KEY`; document in `docs/DECISIONS.md` |
 | C10 | Example `EV-0412` | `evidence.NewID` yields `EV-` + 8 hex | Code is normative; the example is illustrative |
-| C11 | `request_drill` / `drill_plan` include `fresh_deployment_baseline`, but `supported_scope_v1.drills` lists only 3 | hp-implement-drill: baseline is the gate | No change — baseline gates the 3 drills, it is not counted as one |
+| C11 | `request_drill` / `drill_plan` include `fresh_deployment_baseline`, but `supported_scope_v1.drills` lists only 3 | hp-implement-drill: baseline is the gate | No change - baseline gates the 3 drills, it is not counted as one |
 | C12 | Ownership tools named, storage not specified | No ownership file in the layout | Day 2 decision: controller-held file outside the repo under test; record in `docs/DECISIONS.md` |
-| C13 | "Fresh sandbox copy of the repo" (repair target ambiguous) | — | Repairs apply to a `demo-app` copy only; the controller never patches itself at runtime |
+| C13 | "Fresh sandbox copy of the repo" (repair target ambiguous) | - | Repairs apply to a `demo-app` copy only; the controller never patches itself at runtime |
 
 ## 3-day build order
 
@@ -117,7 +117,7 @@ hp-untrusted-input, hp-secrets-and-safety, hp-hackathon-rules. After every step 
 (hp-hackathon-rules): working E2E demo with the Meta model doing real work, then video,
 then one honest results table; cut extra drills, polish, second app.
 
-Day 1 — deterministic core, no model needed.
+Day 1 - deterministic core, no model needed.
 
 | Step | Skill | Output | Done when |
 | --- | --- | --- | --- |
@@ -126,7 +126,7 @@ Day 1 — deterministic core, no model needed.
 | 1.3 Static scan | hp-static-scan | `internal/scan`: env read-vs-documented, jobs, upload paths, backup coverage, hardcoded hosts, `ask <name>` phrases; stable sorted JSON | Fixture tests pass; demo-app missing var detected; scan-only baseline recorded |
 | 1.4 Acceptance + freeze | hp-write-acceptance-tests, hp-protected-paths | `acceptance/`: registration, booking, confirmation-email, documents specs; independent assertions, polling, unique data | Green on baseline; email test fails after revoke; `manifest.sh create`; folder frozen |
 
-Day 2 — controller, drills, agent loop (Meta API goes live).
+Day 2 - controller, drills, agent loop (Meta API goes live).
 
 | Step | Skill | Output | Done when |
 | --- | --- | --- | --- |
@@ -135,7 +135,7 @@ Day 2 — controller, drills, agent loop (Meta API goes live).
 | 2.3 Repair + rerun | hp-repair-and-rerun | Diff review (protected reject), sandbox-copy apply, hash check, identical-suite rerun, before/after IDs | One fault red to green, same acceptance hashes |
 | 2.4 Report | hp-evidence-report | `internal/report`: single offline HTML file, class badges, per-finding evidence/log/source/impact/confidence, inferred/untested sections, integrity footer; escaped + redacted | Sample run renders; each finding links to its record |
 
-Day 3 — honest numbers, video, submission.
+Day 3 - honest numbers, video, submission.
 
 | Step | Skill | Output | Done when |
 | --- | --- | --- | --- |
@@ -144,6 +144,117 @@ Day 3 — honest numbers, video, submission.
 | 3.3 Submit prep | hp-submission-checklist | Public repo, README event section + setup + video link, secrets sweep incl. history, form fields, indie track, contributors | All 7 checklist items verified; official rules re-read |
 
 Nov 4 morning is contingency only; submit by ~3:00 PM ET.
+
+## Report sharing (2026-11-01, done; revised same day)
+
+The Evidence page's **Full report** button opens a share dialog from a
+body-level fixed overlay, so it centers on the viewport - not on the page or
+report beneath it - with scroll locked, focus trapped, and backdrop/Escape
+close. Copy link mints a server-held, read-only share link (`POST /api/share`
+-> `?s=...`, 24h, max 50 live, GET-only): recipients open the report with no
+sign-in, cookie, or token typing, and the link cannot run drills, post to
+Slack, or mint links. Download PDF uses the generated report's themed print
+stylesheet (“Save as PDF”); Post to Slack sends a server-built counts-only
+summary via `HANDOFF_SLACK_WEBHOOK`. Covered by `TestShareLinks` and
+`TestSlackIntegration`; rules documented in `docs/SECURITY.md`.
+
+## Report redesign (2026-11-01, done)
+
+The generated report now uses the Control Room design system end to end:
+IBM Plex Sans/Mono, the Carbon palette and tags, a white 48px report header,
+the dark Qiskit-style hero with the purple-to-blue rule, the app's Storyset
+illustrations embedded inline (evidence, insights, handover), inline Carbon
+icons, a sticky section nav, the app's stat row, Carbon finding cards with
+evidence links, and a dedicated acceptance-integrity section. Print/PDF keeps
+the theme, hides navigation/actions/pagination/illustrations, and expands
+every evidence row. Covered by the report render test's design assertions
+and verified with browser screenshots.
+
+## HOP Connect documentation (2026-11-01, done)
+
+Slack and GitHub features are documented as user guides:
+`docs/guide/connect-slack.md` (OAuth scope, HTTPS callback, storage,
+disconnect, troubleshooting), `docs/guide/connect-github.md` (PKCE/`repo`,
+repository selection, encrypted token storage, limits), and
+`docs/guide/applications.md` (BYOA profile, validation, rehearsals, limits).
+README links all three.
+
+## Bring Your Own App onboarding (2026-11-01, done)
+
+`internal/byoa` adds a declarative `handoffproof.json` profile (services,
+health, probe runtime, env names, credentials, workflows with http /
+sql_count / log_contains / file_exists steps, data stores, allowlisted
+backup), fail-closed validation, secret-path/symlink/size-safe source copy,
+Compose denylist checks, `docker compose config` service verification, a
+generated no-published-ports internal-network override, and a sandbox runner
+for baseline, withdrawn-credential, missing-configuration, and backup
+rehearsals. Evidence records gain optional `app_id`, `profile_version`,
+`source_sha256`, and `fault_target`. The server registry
+(`/api/applications...`) imports local folders or GitHub archives with the
+connected account, AES-GCM-encrypts wizard environment values, and is
+operator-only. The console gains an **Applications** page with an import
+wizard, profile editor, validate/scan/run/delete, and per-kind fault target.
+Proven by profile/compose unit tests, the encrypted-registry API test, and a
+Docker e2e rehearsal on a non-demo Python fixture
+(`internal/byoa/testdata/miniapp`). Limits are documented in the guide.
+
+## Application structure, onboarding, Settings, GitHub (2026-11-01, done)
+
+The console is structured as an end-user application: the sidenav is grouped
+**Start** (Get started), **Control Room** (Readiness, Rehearse, Evidence,
+Insights), and **Project** (Settings, About HOP), with one shared page-head
+pattern (title, plain-language purpose, Storyset illustration) and a header
+shortcut to Settings. The console opens on **Get started**, a six-step
+illustrated checklist whose done states come from live score/evidence/
+integration data and whose buttons open the page where each step happens.
+
+**Settings** is viewable by console users; only operators can change
+anything. It covers Slack (status/connect/post/disconnect), GitHub, report
+defaults (rows per page, saved in the browser and shared with the generated
+report), and server/safety status. GitHub uses OAuth web flow with PKCE and
+the `repo` scope: callback state is one-time and cookie-bound, the token is
+AES-GCM encrypted outside the repo and never returned to the browser, and
+operators pick the remediation repository/branch from the repositories the
+connection can access (`/user/repos`, verified via `/repos/{owner}/{repo}`).
+Covered by `TestGitHubOAuthFlow`; setup in the README.
+
+## Slack connection (2026-11-01, done)
+
+Real Slack connection is Slack OAuth v2 with the `incoming-webhook` scope:
+console operators click **Add to Slack** in the Full report dialog (or the
+generated report), approve in Slack, and choose the channel. The callback
+(`GET /api/integrations/slack/callback`) is protected by a one-time,
+10-minute, HttpOnly `hp_slack_state` cookie plus a server-side state record;
+it exchanges the code at `oauth.v2.access`, validates the returned
+`hooks.slack.com/services/...` webhook, and stores only that webhook
+(AES-GCM encrypted, outside the repo; `HANDOFF_SLACK_STORE` /
+`HANDOFF_SLACK_ENCRYPTION_KEY` control the store). OAuth bot/user tokens are
+discarded. Status, post, and disconnect are operator-only; share links stay
+read-only. Covered by `TestSlackOAuthFlow` (fake Slack exchange, encrypted
+store, state replay rejection, disconnect) plus the existing post test.
+Setup is documented in the README's "Connect a real Slack workspace".
+
+## Report source references (2026-11-01, fixed)
+
+Diagnosis findings could reach the report with no `source_references` (the
+spec declared the field but did not require it), so the report's Source cell
+rendered blank. `LoadSpec` now requires at least one `source_references`
+entry per diagnosis finding before a diagnosis can be saved; report
+generation carries every reference into the report; and a finding that still
+has none renders "Not provided — citation missing" instead of an empty cell.
+The current withdrawn-token diagnosis was backfilled with verified
+`src/index.ts` / `src/mail.ts` references; `verify --model=false` reports all
+five citations verified. Covered by
+`TestDiagnosisSchemaRequiresSourceReferences` and the report render test.
+
+## Evidence pagination (2026-11-01, done)
+
+Console Evidence and the generated report use the same Carbon pagination:
+10/25/50 rows per page, “Showing X–Y of Z records”, First/Previous/numbered/
+Next/Last controls. Console drill/result/search changes reset to page 1;
+report summary links jump to the page holding the cited evidence record;
+print/PDF output expands every row and hides the pager. Covered by the report
+render test's pagination assertions.
 
 ## Post-audit security remediation (2026-11-01, done)
 
@@ -165,14 +276,14 @@ asserted) integrity, `npm ci` + non-root images + CI permissions. Verified:
 - Verdict integrity: `grep -rn "Passed" internal --include=*.go | grep -v internal/controller | grep -v internal/evidence` shows no assignments; every observed claim carries an `evidence_id`.
 - Untrusted input: unit test with injection string + fake key asserts delimiters, `[REDACTED:...]`, unchanged verdicts.
 - E2E: healthy baseline green, token drill red (email assertion), diagnosis cites evidence, repair rerun green with unchanged hashes.
-- Highest risk: Day 2.1 — first real Meta API run (auth, model ID, `text.format`, tool loop). Validate with a minimal live call before wiring all phases.
+- Highest risk: Day 2.1 - first real Meta API run (auth, model ID, `text.format`, tool loop). Validate with a minimal live call before wiring all phases.
 
 ## Risks / Open Questions
 
 - R1: Default sampling may vary. Mitigation: eval watches for unstable output; revisit temperature/top_p only if eval shows instability.
 - R2: Docker Desktop + Playwright + Node 20 setup on Windows 11/Git Bash may eat Day 1. Mitigation: sink + scan first (no Docker needed for scan unit tests).
 - R3: API key availability/quota unknown. Mitigation: Day 2 starts with one minimal live call; keep a recorded-evidence replay path so controller/report work continues offline.
-- Q1: Held-out fault needs someone outside the implementation — who, and when? (Else eval runs on planted faults only, labeled as such.)
+- Q1: Held-out fault needs someone outside the implementation - who, and when? (Else eval runs on planted faults only, labeled as such.)
 - Q2: Approve C1/C2/C4/C8/C9 resolutions before Day 1 edits? (Step 1 changed nothing.)
 
 ## Sources
