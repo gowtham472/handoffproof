@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "golang.go",
+    "ms-azuretools.vscode-docker",
+    "ms-playwright.playwright",
+    "editorconfig.editorconfig"
+  ]
+}

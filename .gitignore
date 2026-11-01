@@ -1,0 +1,17 @@
+# secrets
+.env
+.env.*
+!.env.example
+auth.json
+# build and runtime output
+*.exe
+/bin/
+node_modules/
+evidence/*
+!evidence/.gitkeep
+coverage/
+playwright-report/
+test-results/
+# editor/os
+.DS_Store
+Thumbs.db
