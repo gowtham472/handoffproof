@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HandoffProof Control Room</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #10151c; color: #e6ebf0; font-family: "Segoe UI", system-ui, sans-serif; line-height: 1.5; }
+  header { display: flex; flex-wrap: wrap; gap: 1rem; align-items: baseline; justify-content: space-between; padding: 1.1rem 1.5rem; border-bottom: 2px solid #e8a33d; background: #131a23; }
+  h1 { font-size: 1.45rem; margin: 0; letter-spacing: .01em; }
+  h1 .sub { color: #93a1b0; font-size: .95rem; font-weight: 400; margin-left: .6rem; }
+  h2 { font-size: 1.05rem; margin: 0 0 .7rem; color: #f2c879; }
+  main { padding: 1.2rem 1.5rem 2rem; max-width: 1180px; margin: 0 auto; }
+  .kpis { display: flex; flex-wrap: wrap; gap: .8rem; margin-bottom: 1.2rem; }
+  .kpi { background: #171e27; border: 1px solid #2a3542; border-radius: 6px; padding: .7rem 1rem; min-width: 150px; }
+  .kpi b { display: block; font-size: 1.5rem; font-family: ui-monospace, Consolas, monospace; }
+  .kpi span { color: #93a1b0; font-size: .85rem; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: #171e27; border: 1px solid #2a3542; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid #2a3542; vertical-align: top; }
+  th { color: #93a1b0; font-weight: 600; }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size: .85em; }
+  .badge { display: inline-block; padding: .08rem .55rem; border-radius: 999px; font-size: .8rem; font-weight: 700; }
+  .pass { background: #14532d; color: #7ee2ae; } .fail { background: #5f1d16; color: #ff9d8f; }
+  .caught { background: #14532d; color: #7ee2ae; } .missed { background: #5f1d16; color: #ff9d8f; }
+  .risk { background: #5a3b0c; color: #f2c879; } .untested { background: #334155; color: #b6c2d1; }
+  button { background: #e8a33d; color: #161006; border: 0; border-radius: 5px; padding: .5rem .9rem; font-weight: 700; cursor: pointer; margin: 0 .4rem .4rem 0; }
+  button:disabled { opacity: .45; cursor: wait; }
+  button.ghost { background: #232e3b; color: #e6ebf0; border: 1px solid #3b4a5c; }
+  select { background: #232e3b; color: #e6ebf0; border: 1px solid #3b4a5c; border-radius: 5px; padding: .45rem; }
+  .card { border: 1px solid #2a3542; border-radius: 6px; padding: .8rem; margin-bottom: .7rem; background: #131a23; }
+  .muted { color: #93a1b0; } .small { font-size: .88rem; }
+  footer { color: #93a1b0; border-top: 1px solid #2a3542; padding-top: .8rem; margin-top: 1rem; }
+  a { color: #f2c879; }
+</style>
+</head>
+<body>
+<header>
+  <h1>HandoffProof Control Room <span class="sub">Rehearse the day your developer leaves.</span></h1>
+  <div class="mono" id="hdr">loading…</div>
+</header>
+<main>
+  <section class="kpis" id="kpis"></section>
+  <section class="panel">
+    <h2>Handover Score</h2>
+    <div id="scorebox">computing…</div>
+    <div id="trend" style="display:flex;align-items:flex-end;gap:4px;height:56px;margin-top:.6rem"></div>
+  </section>
+  <div class="grid">
+    <section class="panel">
+      <h2>Planted-fault scoreboard</h2>
+      <table><thead><tr><th>Fault</th><th>Kind</th><th>Status</th><th>Basis</th></tr></thead><tbody id="score"></tbody></table>
+      <p class="muted small">Ground truth lives outside the agent's reach. A fault counts as caught only from controller evidence or the deterministic scan.</p>
+    </section>
+    <section class="panel">
+      <h2>Run a drill (controller-executed)</h2>
+      <div id="drills"></div>
+      <p class="muted small" id="jobstatus">Drills run in isolated Docker sandboxes. Verdicts come from controller assertions only.</p>
+      <button class="ghost" id="scanbtn">Run static scan</button>
+      <span class="small" id="scanout"></span>
+    </section>
+  </div>
+  <section class="panel">
+    <h2>What-if: remove a dependency</h2>
+    <p><label class="muted">Dependency </label><select id="whatifnode"></select>
+      <button class="ghost" id="whatifbtn">Simulate removal</button></p>
+    <div id="whatifout" class="small">Pick a dependency to preview which workflows break and which drill would confirm it. Preview only — nothing is executed.</div>
+  </section>
+  <section class="panel">
+    <h2>Evidence explorer</h2>
+    <p><label class="muted">Drill filter </label>
+      <select id="filter"><option value="">all drills</option></select>
+      <a href="/report" target="_blank" rel="noopener">Open full HTML evidence report</a></p>
+    <table><thead><tr><th>Evidence</th><th>Drill</th><th>Workflow</th><th>Assertion</th><th>Result</th></tr></thead><tbody id="ev"></tbody></table>
+  </section>
+  <section class="panel">
+    <h2>Model diagnosis</h2>
+    <div id="diag"></div>
+  </section>
+  <section class="panel">
+    <h2>Final assessment</h2>
+    <div id="assess"></div>
+  </section>
+  <footer id="foot"></footer>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+async function getJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
+function badge(ok, yes, no) { return '<span class="badge ' + (ok ? 'pass' : 'fail') + '">' + (ok ? yes : no) + '</span>'; }
+
+async function loadSummary() {
+  const s = await getJSON('/api/summary');
+  $('hdr').textContent = 'model: ' + (s.model || 'not set') + ' · manifest ' + String(s.manifest).slice(0, 12) + '…';
+  $('kpis').innerHTML = [
+    [s.records, 'evidence records'], [s.passed, 'observed pass'], [s.failed, 'observed fail'], [s.runs, 'drill runs']
+  ].map(([n, l]) => '<div class="kpi"><b>' + esc(n) + '</b><span>' + esc(l) + '</span></div>').join('');
+  $('foot').textContent = 'Pass/fail is decided by the controller. The model proposes, explains and repairs — it never issues a verdict.';
+}
+
+let allEvidence = [];
+async function loadEvidence() {
+  allEvidence = await getJSON('/api/evidence');
+  const drills = [...new Set(allEvidence.map(r => r.drill))].sort();
+  $('filter').innerHTML = '<option value="">all drills</option>' + drills.map(d => '<option>' + esc(d) + '</option>').join('');
+  renderEvidence();
+}
+function renderEvidence() {
+  const f = $('filter').value;
+  const rows = allEvidence.filter(r => !f || r.drill === f).slice().reverse();
+  $('ev').innerHTML = rows.map(r =>
+    '<tr><td class="mono">' + esc(r.evidence_id) + '</td><td>' + esc(r.drill) + '</td><td>' + esc(r.workflow) + '</td><td>' + esc(r.assertion) + '</td><td>' + badge(r.passed, 'passed', 'failed') + '</td></tr>'
+  ).join('') || '<tr><td colspan="5" class="muted">No evidence yet. Run a drill.</td></tr>';
+}
+
+async function loadScore() {
+  const rows = await getJSON('/api/scoreboard');
+  $('score').innerHTML = rows.map(r =>
+    '<tr><td class="mono">' + esc(r.id) + '</td><td>' + esc(r.kind) + '</td><td><span class="badge ' + esc(r.status) + '">' + esc(r.status) + '</span></td><td class="mono">' + esc(r.basis) + '</td></tr>'
+  ).join('');
+}
+
+async function loadDiag() {
+  try {
+    const d = await getJSON('/api/diagnosis');
+    $('diag').innerHTML = (d.findings || []).map(f =>
+      '<div class="card"><span class="badge ' + (f.classification === 'observed_failure' ? 'fail' : f.classification === 'observed_pass' ? 'pass' : f.classification === 'inferred_risk' ? 'risk' : 'untested') + '">' + esc(f.classification) + '</span> ' +
+      '<b>' + esc(f.finding_id) + '</b> <span class="muted">' + esc(f.workflow) + ' · confidence ' + esc(f.confidence) + '</span><br>' +
+      '<span class="small">' + esc(f.root_cause) + '</span><br><span class="small muted">Impact: ' + esc(f.business_impact) + ' · Evidence: ' + esc((f.evidence_ids || []).join(', ')) + '</span></div>'
+    ).join('') || '<p class="muted">No findings.</p>';
+  } catch { $('diag').innerHTML = '<p class="muted">No diagnosis yet. Run a diagnosed drill from the CLI.</p>'; }
+  try {
+    const a = await getJSON('/api/assessment');
+    $('assess').innerHTML = '<p>' + esc(a.summary) + '</p><p class="small muted">Limitations: ' + esc((a.limitations || []).join(' · ')) + '</p>' +
+      '<p class="small">Acceptance integrity: ' + (a.acceptance_integrity && a.acceptance_integrity.unchanged ? 'unchanged' : 'CHANGED') + '</p>';
+  } catch { $('assess').innerHTML = '<p class="muted">No assessment yet.</p>'; }
+}
+
+const DRILLS = [
+  ['fresh_deployment_baseline', 'Baseline'],
+  ['withdrawn_test_token', 'Withdraw token'],
+  ['missing_configuration', 'Missing config'],
+  ['incomplete_backup', 'Incomplete backup']
+];
+function renderDrills(disabled) {
+  $('drills').innerHTML = DRILLS.map(([name, label]) =>
+    '<button data-drill="' + esc(name) + '"' + (disabled ? ' disabled' : '') + '>' + esc(label) + '</button>').join('');
+  document.querySelectorAll('[data-drill]').forEach(b => b.addEventListener('click', () => runDrill(b.dataset.drill)));
+}
+async function runDrill(name) {
+  renderDrills(true);
+  $('jobstatus').textContent = 'Running ' + name + ' in a fresh sandbox (about a minute)…';
+  try {
+    const res = await fetch('/api/drills/run', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hp-request': '1' }, body: JSON.stringify({ drill: name }) });
+    const job = await res.json();
+    if (!res.ok) throw new Error(job.error || res.status);
+    const timer = setInterval(async () => {
+      const j = await getJSON('/api/jobs/' + job.id);
+      if (j.status === 'done') {
+        clearInterval(timer);
+        $('jobstatus').textContent = name + ' finished: ' + j.records.filter(r => r.passed).length + ' passed, ' + j.records.filter(r => !r.passed).length + ' failed. Evidence added below.';
+        renderDrills(false);
+        await Promise.all([loadSummary(), loadEvidence(), loadScore()]);
+      } else if (j.status === 'error') {
+        clearInterval(timer);
+        $('jobstatus').textContent = name + ' error: ' + j.error;
+        renderDrills(false);
+      }
+    }, 2500);
+  } catch (e) {
+    $('jobstatus').textContent = 'Could not start drill: ' + e.message;
+    renderDrills(false);
+  }
+}
+
+$('filter').addEventListener('change', renderEvidence);
+$('scanbtn').addEventListener('click', async () => {
+  $('scanout').textContent = ' scanning…';
+  try {
+    const s = await getJSON('/api/scan');
+    $('scanout').textContent = ' undocumented: ' + (s.undocumented_env_vars || []).join(', ') +
+      ' · backup gaps: ' + (s.backup_gaps || []).join(', ') +
+      ' · ask phrases: ' + (s.ask_phrases || []).map(x => x.value).join(', ');
+  } catch (e) { $('scanout').textContent = ' scan failed: ' + e.message; }
+});
+
+async function loadWhatif() {
+  const g = await getJSON('/api/whatif');
+  $('whatifnode').innerHTML = g.nodes.map(n => '<option>' + esc(n.id) + '</option>').join('');
+}
+$('whatifbtn').addEventListener('click', async () => {
+  const node = $('whatifnode').value;
+  const g = await getJSON('/api/whatif?remove=' + encodeURIComponent(node));
+  if (!g.affected || g.affected.length === 0) {
+    $('whatifout').innerHTML = 'Removing <b>' + esc(node) + '</b> breaks no mapped workflow directly.';
+    return;
+  }
+  $('whatifout').innerHTML = 'Removing <b>' + esc(node) + '</b> would break:<br>' + g.affected.map(a =>
+    '· <b>' + esc(a.workflow) + '</b> (via ' + esc(a.via) + ') — confirm with drill <span class="mono">' + esc(a.confirm_with) + '</span>').join('<br>');
+});
+
+async function loadHandoverScore() {
+  const s = await getJSON('/api/score');
+  const c = s.current.components || {};
+  $('scorebox').innerHTML = '<b style="font-size:1.8rem;font-family:ui-monospace,Consolas,monospace">' + esc(s.current.total) + '</b> / 100' +
+    ' <span class="muted small">workflows ' + esc(c.workflows ?? '–') + ' · faults ' + esc(c.faults ?? '–') + ' · documentation ' + esc(c.documentation ?? '–') + ' · backup ' + esc(c.backup ?? '–') + '</span>';
+  const hist = (s.history || []).slice(-14);
+  $('trend').innerHTML = hist.map(h => '<div title="' + esc(h.ts) + ': ' + esc(h.total) + '" style="background:#e8a33d;width:22px;height:' + Math.max(4, Number(h.total) || 0) + '%"></div>').join('') || '<span class="muted small">No history yet — run: handoffproof score</span>';
+}
+
+renderDrills(false);
+Promise.all([loadSummary(), loadEvidence(), loadScore(), loadDiag(), loadWhatif(), loadHandoverScore()]).catch(e => { $('hdr').textContent = 'load error: ' + e.message; });
+</script>
+</body>
+</html>
