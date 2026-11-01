@@ -12,7 +12,8 @@ one recovery target (a fresh local environment), one evidence view.
 ## Hard invariants (never violate)
 1. Only the controller issues verdicts. The agent code path has no function that sets pass/fail.
 2. Protected paths are never modified by the agent or by repair diffs: `acceptance/`,
-   `internal/controller/`, `internal/drills/`, `evidence/`, `.manifest.sha256`.
+   `internal/controller/`, `internal/drills/`, `internal/evidence/`, `evidence/`,
+   `.manifest.sha256`, `scripts/manifest.sh`.
    `scripts/manifest.sh verify` must pass before and after every drill and rerun.
 3. Every finding has exactly one class: observed_failure, observed_pass, inferred_risk,
    untested_dependency. observed_* requires a controller evidence_id.

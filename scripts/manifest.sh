@@ -2,11 +2,11 @@
 # Hash protected paths so the agent cannot silently edit acceptance tests or drill code.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PROTECTED=(acceptance internal/controller internal/drills scripts/manifest.sh)
+PROTECTED=(acceptance internal/controller internal/drills internal/evidence scripts/manifest.sh)
 MANIFEST=".manifest.sha256"
 
 list() {
-  find "${PROTECTED[@]}" -type f ! -name '.gitkeep' 2>/dev/null | LC_ALL=C sort | xargs -r sha256sum
+  find "${PROTECTED[@]}" -type f ! -name '.gitkeep' ! -path '*/node_modules/*' ! -path '*/test-results/*' ! -path '*/playwright-report/*' 2>/dev/null | LC_ALL=C sort | xargs -r sha256sum | sed 's/ \*/  /'
 }
 
 case "${1:-}" in

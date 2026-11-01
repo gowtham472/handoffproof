@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: handoff
+      POSTGRES_PASSWORD: handoff_pw
+      POSTGRES_DB: handoffproof
+    ports:
+      - "55432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U handoff -d handoffproof"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  mail-sink:
+    build: ../mocks/mail-sink
+    environment:
+      MAIL_SINK_PORT: "4100"
+      MAIL_SINK_ADMIN_TOKEN: dev-admin-token
+      MAIL_SINK_VALID_TOKENS: dev-mail-token
+    ports:
+      - "4100:4100"
+  app:
+    build: .
+    environment:
+      PORT: "3000"
+      DATABASE_URL: postgres://handoff:handoff_pw@db:5432/handoffproof
+      MAIL_SINK_URL: http://mail-sink:4100
+      MAIL_API_TOKEN: dev-mail-token
+      SCHEDULER_TOKEN: dev-scheduler-token
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      mail-sink:
+        condition: service_started
+volumes:
+  dbdata:
+  uploads:
