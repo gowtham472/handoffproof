@@ -96,7 +96,7 @@ pinned upstream images, and physical access.
   admin token whenever `MAIL_SINK_REQUIRE_AUTH=1` (always set in sandboxes);
   admin comparisons are constant-time; `/health` no longer discloses message counts.
   Demo app validates registration input and caps payload sizes.
-- **H12 - boundary coverage.** Evidence package 0% → 100%, score 2.2% → 69.6%,
+- **H12 - boundary coverage.** Evidence package 0% → 100%, score 2.2% → 73.1%,
   scan 91.7%, secretpath 100%; console auth/CSRF/rate-limit tests added.
   Controller coverage (11.3%) is mostly Docker-bound paths, exercised by the four
   live drills instead of unit tests.
