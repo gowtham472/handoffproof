@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -29,6 +30,15 @@ import (
 //go:embed web/index.html
 var consoleHTML []byte
 
+//go:embed web/assets/illustrations/*.svg
+var illoFS embed.FS
+
+// Illustrations by Storyset - https://storyset.com - recolored to the IBM palette.
+var illoFiles = map[string]bool{
+	"handover.svg": true, "rehearse.svg": true, "evidence.svg": true,
+	"insights.svg": true, "about.svg": true,
+}
+
 type job struct {
 	ID      string            `json:"id"`
 	Drill   string            `json:"drill"`
@@ -38,14 +48,20 @@ type job struct {
 }
 
 type server struct {
-	root      string
-	tokenHash string // sha256 hex of the console token; the token itself is never stored
-	mu        sync.Mutex
-	jobs      map[string]*job
-	jobDone   map[string]time.Time
-	seq       int
-	rlMu      sync.Mutex
-	rlHits    map[string][]time.Time
+	root         string
+	tokenHash    string // sha256 hex of the console token; the token itself is never stored
+	mu           sync.Mutex
+	jobs         map[string]*job
+	jobDone      map[string]time.Time
+	seq          int
+	rlMu         sync.Mutex
+	rlHits       map[string][]time.Time
+	shareMu      sync.Mutex
+	shares       map[string]time.Time // share id -> expiry; read-only, GET only
+	slackMu      sync.Mutex
+	slackStates  map[string]slackOAuthState
+	githubMu     sync.Mutex
+	githubStates map[string]githubOAuthState
 }
 
 func hashToken(tok string) string {
@@ -65,6 +81,75 @@ func (s *server) authorized(r *http.Request) bool {
 		return true
 	}
 	return false
+}
+
+// shareAuthorized reports whether r carries a live read-only share id.
+// Share links grant GET only: writers (drills, Slack posts, new shares) stay
+// behind the console token.
+func (s *server) shareAuthorized(r *http.Request) bool {
+	id := r.URL.Query().Get("s")
+	if id == "" {
+		return false
+	}
+	s.shareMu.Lock()
+	defer s.shareMu.Unlock()
+	if s.shares == nil {
+		return false
+	}
+	exp, ok := s.shares[id]
+	if !ok {
+		return false
+	}
+	if time.Now().After(exp) {
+		delete(s.shares, id)
+		return false
+	}
+	return true
+}
+
+func (s *server) pruneShares() {
+	s.shareMu.Lock()
+	defer s.shareMu.Unlock()
+	if s.shares == nil {
+		s.shares = map[string]time.Time{}
+		return
+	}
+	for id, exp := range s.shares {
+		if time.Since(exp) > 0 {
+			delete(s.shares, id)
+		}
+	}
+	if len(s.shares) > 50 {
+		for id := range s.shares {
+			delete(s.shares, id)
+			if len(s.shares) <= 50 {
+				break
+			}
+		}
+	}
+}
+
+// shareLink mints a read-only share id (POST) - the only share operation,
+// so only console-token holders can create links.
+func (s *server) shareLink(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, 405, map[string]string{"error": "method not allowed"})
+		return
+	}
+	s.pruneShares()
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		writeJSON(w, 500, map[string]string{"error": "could not mint share link"})
+		return
+	}
+	id := hex.EncodeToString(buf)
+	s.shareMu.Lock()
+	if s.shares == nil {
+		s.shares = map[string]time.Time{}
+	}
+	s.shares[id] = time.Now().Add(24 * time.Hour)
+	s.shareMu.Unlock()
+	writeJSON(w, 200, map[string]string{"share": id, "expires": "24h", "scope": "read-only"})
 }
 
 // allow enforces a per-client sliding-window rate limit.
@@ -139,6 +224,31 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, filepath.Join(s.root, "evidence", "report.html"))
 	})
+	mux.HandleFunc("/api/integrations/slack", s.slackStatus)
+	mux.HandleFunc("/api/integrations/slack/connect", s.slackConnect)
+	mux.HandleFunc("/api/integrations/slack/callback", s.slackCallback)
+	mux.HandleFunc("/api/integrations/slack/", s.slackStatus)
+	mux.HandleFunc("/api/integrations/github", s.githubStatus)
+	mux.HandleFunc("/api/integrations/github/connect", s.githubConnect)
+	mux.HandleFunc("/api/integrations/github/callback", s.githubCallback)
+	mux.HandleFunc("/api/integrations/github/repositories", s.githubRepositories)
+	mux.HandleFunc("/api/integrations/github/repository", s.githubRepository)
+	mux.HandleFunc("/api/share", s.shareLink)
+	mux.HandleFunc("/assets/illustrations/", func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/assets/illustrations/")
+		if !illoFiles[name] {
+			http.NotFound(w, r)
+			return
+		}
+		raw, err := illoFS.ReadFile("web/assets/illustrations/" + name)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("content-type", "image/svg+xml")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		_, _ = w.Write(raw)
+	})
 	mux.HandleFunc("/api/summary", func(w http.ResponseWriter, r *http.Request) {
 		recs := s.allRecords()
 		passed, failed := 0, 0
@@ -190,6 +300,8 @@ func (s *server) routes() http.Handler {
 	})
 	mux.HandleFunc("/api/whatif", s.whatif)
 	mux.HandleFunc("/api/drills/run", s.runDrill)
+	mux.HandleFunc("/api/applications", s.applications)
+	mux.HandleFunc("/api/applications/", s.applicationByID)
 	mux.HandleFunc("/api/jobs/", func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/api/jobs/")
 		s.mu.Lock()
@@ -209,7 +321,7 @@ func (s *server) routes() http.Handler {
 // served unauthenticated, even on loopback.
 func (s *server) protect(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("X-Frame-Options", "DENY")
@@ -220,8 +332,24 @@ func (s *server) protect(next http.Handler) http.Handler {
 				return
 			}
 		}
-		if r.Method == http.MethodPost && r.Header.Get("X-HP-Request") != "1" {
+		if (r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch || r.Method == http.MethodDelete) && r.Header.Get("X-HP-Request") != "1" {
 			writeJSON(w, 403, map[string]string{"error": "missing X-HP-Request header"})
+			return
+		}
+		if (r.URL.Path == "/api/integrations/slack/callback" || r.URL.Path == "/api/integrations/github/callback") && r.Method == http.MethodGet {
+			// Slack returns the browser here without a console token. The
+			// handler only proceeds with the one-time OAuth state cookie and
+			// server-side state record created by an operator.
+			next.ServeHTTP(w, r)
+			return
+		}
+		if s.shareAuthorized(r) {
+			if r.Method != http.MethodGet {
+				writeJSON(w, 403, map[string]string{"error": "share links are read-only"})
+				return
+			}
+			s.pruneShares()
+			next.ServeHTTP(w, r)
 			return
 		}
 		if !s.authorized(r) {
@@ -458,7 +586,7 @@ func cmdServe(root string, args []string) error {
 		fmt.Println("(random console token generated; set HANDOFF_CONSOLE_TOKEN to choose your own)")
 	}
 	if !strings.HasPrefix(addr, "127.0.0.1") && !strings.HasPrefix(addr, "localhost") && !strings.HasPrefix(addr, "[::1]") {
-		fmt.Println("WARNING: binding beyond loopback; the console can launch Docker drills — keep the token secret.")
+		fmt.Println("WARNING: binding beyond loopback; the console can launch Docker drills - keep the token secret.")
 	}
 	srv := &http.Server{
 		Addr: addr, Handler: s.routes(),
