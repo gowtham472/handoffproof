@@ -1,0 +1,23 @@
+{
+  "app": "eval/fixtures/heldout-app",
+  "planted_faults": [
+    {
+      "id": "H1-undocumented-key",
+      "kind": "missing_configuration",
+      "description": "Code reads API_KEY; .env.example documents only PORT.",
+      "expected_static": "undocumented_env:API_KEY"
+    },
+    {
+      "id": "H2-empty-backup",
+      "kind": "incomplete_backup",
+      "description": "backup.sh prints a message and copies nothing; /data/files is uncovered.",
+      "expected_static": "backup_gap:file_storage"
+    },
+    {
+      "id": "H3-ask-sam",
+      "kind": "documentation_gap",
+      "description": "Ops notes direct the reader to a named individual for the key.",
+      "expected_static": "ask_phrase:ask Sam"
+    }
+  ]
+}
