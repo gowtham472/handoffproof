@@ -1,0 +1,38 @@
+name: handover-gate
+# HandoverProof CI gate: a pull request must keep the app deployable by
+# someone other than its author. Runs the quality gate, the independent
+# acceptance suite on a healthy baseline, and one controller drill.
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: handover-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Quality gate (fmt, vet, tests, skills, manifest)
+        run: bash scripts/check.sh
+      - name: Acceptance suite on healthy baseline
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+        run: |
+          cd demo-app && docker compose up -d --build
+          for i in $(seq 1 60); do curl -fs http://localhost:3000/health && break || sleep 2; done
+          cd ../acceptance && npm ci --no-audit --no-fund && npx playwright test
+          cd ../demo-app && docker compose down -v
+      - name: Controller baseline drill (fresh sandbox)
+        run: |
+          go build -o /tmp/handoffproof ./cmd/handoffproof
+          /tmp/handoffproof drill --drill fresh_deployment_baseline --diagnose=false
