@@ -7,7 +7,7 @@ import { sendMail } from './mail';
 import { slugify } from './utils/notes';
 
 const app = express();
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '1mb' }));
 
 const UPLOAD_DIR = '/data/uploads';
 
@@ -18,7 +18,7 @@ function errMsg(err: unknown): string {
 app.post('/register', async (req: Request, res: Response) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim() : '';
   const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
-  if (!email || !name) {
+  if (!email || !name || email.length > 254 || name.length > 100 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     res.status(400).json({ error: 'email and name are required' });
     return;
   }
@@ -81,6 +81,10 @@ app.post('/uploads', async (req: Request, res: Response) => {
     return;
   }
   const data = Buffer.from(b64, 'base64');
+  if (data.length > 1024 * 1024) {
+    res.status(413).json({ error: 'file too large (1MB max)' });
+    return;
+  }
   const sha256 = createHash('sha256').update(data).digest('hex');
   const id = randomUUID();
   const storedName = id + '-' + slugify(basename(name));
@@ -148,7 +152,17 @@ function startReminderJob(): void {
 
 async function main(): Promise<void> {
   const migrationsDir = join(process.cwd(), 'migrations');
-  await migrate(migrationsDir);
+  // The database may still be initialising on first boot; retry briefly.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await migrate(migrationsDir);
+      break;
+    } catch (err) {
+      if (attempt >= 15) throw err;
+      console.warn('migration attempt ' + attempt + ' failed, retrying: ' + errMsg(err));
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
   await mkdir(UPLOAD_DIR, { recursive: true });
   startReminderJob();
   const port = Number(process.env.PORT || 3000);

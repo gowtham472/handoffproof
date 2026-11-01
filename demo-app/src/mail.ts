@@ -3,6 +3,7 @@ export async function sendMail(to: string, subject: string, body: string): Promi
   const base = process.env.MAIL_SINK_URL || 'http://localhost:4100';
   const token = process.env.MAIL_API_TOKEN || '';
   const res = await fetch(base + '/send', {
+    signal: AbortSignal.timeout(5000),
     method: 'POST',
     headers: {
       'content-type': 'application/json',

@@ -6,9 +6,14 @@ services:
       POSTGRES_PASSWORD: handoff_pw
       POSTGRES_DB: handoffproof
     ports:
-      - "55432:5432"
+      - "127.0.0.1:${HANDOFF_DB_PORT:-55432}:5432"
     volumes:
       - dbdata:/var/lib/postgresql/data
+    networks: [handover]
+    mem_limit: 512m
+    cpus: "1.0"
+    pids_limit: 128
+    security_opt: ["no-new-privileges:true"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U handoff -d handoffproof"]
       interval: 3s
@@ -18,27 +23,42 @@ services:
     build: ../mocks/mail-sink
     environment:
       MAIL_SINK_PORT: "4100"
-      MAIL_SINK_ADMIN_TOKEN: dev-admin-token
-      MAIL_SINK_VALID_TOKENS: dev-mail-token
+      MAIL_SINK_ADMIN_TOKEN: ${HANDOFF_SINK_ADMIN_TOKEN:-dev-admin-token}
+      MAIL_SINK_VALID_TOKENS: ${HANDOFF_MAIL_TOKEN:-dev-mail-token}
+      MAIL_SINK_REQUIRE_AUTH: ${HANDOFF_SINK_REQUIRE_AUTH:-}
     ports:
-      - "4100:4100"
+      - "127.0.0.1:${HANDOFF_SINK_PORT:-4100}:4100"
+    networks: [handover]
+    mem_limit: 256m
+    cpus: "0.5"
+    pids_limit: 64
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
   app:
     build: .
     environment:
       PORT: "3000"
       DATABASE_URL: postgres://handoff:handoff_pw@db:5432/handoffproof
       MAIL_SINK_URL: http://mail-sink:4100
-      MAIL_API_TOKEN: dev-mail-token
-      SCHEDULER_TOKEN: dev-scheduler-token
+      MAIL_API_TOKEN: ${HANDOFF_MAIL_TOKEN:-dev-mail-token}
+      SCHEDULER_TOKEN: ${HANDOFF_SCHEDULER_TOKEN-dev-scheduler-token}
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${HANDOFF_APP_PORT:-3000}:3000"
     volumes:
       - uploads:/data/uploads
+    networks: [handover]
+    mem_limit: 512m
+    cpus: "1.0"
+    pids_limit: 128
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
     depends_on:
       db:
         condition: service_healthy
       mail-sink:
         condition: service_started
+networks:
+  handover: {}
 volumes:
   dbdata:
   uploads:
