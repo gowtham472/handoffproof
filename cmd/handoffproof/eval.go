@@ -351,8 +351,8 @@ func runLabel(path string) string {
 
 type citationCounts struct {
 	Total, Verified, Invalid, Missing, UnknownIDs int
-	Found                                          bool
-	Label                                          string
+	Found                                         bool
+	Label                                         string
 }
 
 func countCitations(evDir string) citationCounts {

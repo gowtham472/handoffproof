@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -29,6 +30,9 @@ import (
 
 //go:embed web/index.html
 var consoleHTML []byte
+
+//go:embed web/landing/*
+var landingFS embed.FS
 
 //go:embed web/assets/illustrations/*.svg
 var illoFS embed.FS
@@ -288,6 +292,20 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 
 func (s *server) routes() http.Handler {
 	mux := http.NewServeMux()
+	landingAssets, err := fs.Sub(landingFS, "web/landing")
+	if err != nil {
+		panic(fmt.Errorf("open embedded landing assets: %w", err))
+	}
+	mux.Handle("/landing/", http.StripPrefix("/landing/", http.FileServer(http.FS(landingAssets))))
+	mux.HandleFunc("/landing", func(w http.ResponseWriter, r *http.Request) {
+		page, err := landingFS.ReadFile("web/landing/index.html")
+		if err != nil {
+			http.Error(w, "Landing page unavailable", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write(page)
+	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
@@ -398,7 +416,7 @@ func (s *server) routes() http.Handler {
 // served unauthenticated, even on loopback.
 func (s *server) protect(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("X-Frame-Options", "DENY")

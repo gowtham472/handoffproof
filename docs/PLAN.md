@@ -1,5 +1,70 @@
 # HandoffProof - 3-day build plan (Step 1)
 
+## UI layout and landing page refresh (2026-11-02)
+
+Status: UI implemented and reviewed on 2026-11-02. User authorized commit/push
+finalization, including the previously requested integrity-manifest refresh.
+
+Validation: landing TypeScript check and production build completed; browser
+review covered Settings connection states, integration detail pages and More
+actions, application search/import/detail navigation, product screenshot tabs,
+font loading, and narrow/wide page bounds. The required check script completed
+gofmt, go vet, Go tests, skills checks, and manifest verification after the user
+authorized finalization. `bash scripts/check.sh` reports `check OK`. No new drill
+ran; screenshots use existing recorded demo evidence.
+
+Follow-up scope explicitly requested by user: use official Phosphor icons rather
+than text arrows, Plus Jakarta Sans on the landing page, fluid responsive page
+widths, actual product screenshots in previews, and review anti-slop guidance.
+Applied the available Stop Slop and design-critique skills; no separately named
+anti-slop design file was found in the installed skills.
+Latest direction: use the application's light theme and blue/purple palette on
+the landing page, superseding the reference's dark colors.
+Follow-up refinement: correct both lasers to use the light shader and application
+blue; recapture all product screenshots using content-only viewport clips.
+Latest user direction supersedes the light theme: restore the dark landing theme,
+use square action buttons, preserve the current layout and content, and capture
+the product screens at twice their display scale for sharper hero rendering.
+Palette/motion refinement requested by user: use the application's charcoal,
+blue, and purple tokens, and cap button movement at 2px with a damped spring.
+
+Goal: keep overview pages compact and move setup, configuration, and detailed actions
+into dedicated pages. Add a HandoffProof landing page using the landing design and
+the actual React Bits component implementations from `D:/H-projects/code2play`.
+
+1. Settings: replace expanding integration forms with consistent summary cards
+   showing connection status and Connect / Manage actions. Provide dedicated Slack
+   and GitHub pages with back navigation, configuration, connection details,
+   repository/channel actions, and disconnect controls. Give report/sharing and
+   server settings their own detail pages where appropriate. Place technical
+   setup guidance in expandable troubleshooting sections.
+2. Applications: make the main page a searchable application list with an Add
+   application action. Move import/setup to a separate page; move per-application
+   configuration, validation, rehearsal actions, and results into a detail page.
+   Review the other console pages for the same overview/detail separation; keep
+   their existing workflow and evidence behavior intact.
+3. Landing: reproduce the reference landing's dark grid, indigo/teal palette,
+   large type, laser hero, interactive panels, and animated calls to action with
+   HandoffProof content and branding. Reuse its actual React Bits source components
+   (LaserFlow, ShinyText, Magnet, StarBorder, CountUp, SpotlightCard, GlareHover,
+   ClickSpark, and DecryptedText where used), retaining attribution/license details.
+   Bundle the landing's React dependencies locally and serve its compiled assets
+   through the existing Go application. Add an Open Control Room entry and a
+   return link from the console; retain existing console deep links and OAuth
+   callbacks. Keep current authentication boundaries; public hosting is outside
+   this change.
+4. Responsive/accessibility: consistent page headers, constrained form widths,
+   clear primary actions, loading/empty/error states, keyboard focus, mobile
+   layouts, and reduced-motion handling. Maintain existing console branding.
+5. Record routing/build decisions in docs/DECISIONS.md. After each implementation
+   step run `bash scripts/check.sh`; build the landing bundle and check desktop
+   and mobile views plus integration and application navigation in a browser.
+   Report the actual checks and any unavailable runtime verification.
+
+Scope: console UI, landing assets/build setup, Go serving routes as needed, and
+design documentation. Do not edit the runtime agent prompt or protected paths.
+The reference project is read-only. Preserve unrelated existing workspace changes.
+
 Status: APPROVED 2026-11-01. Day 2 closed live. Power-ups F1–F6 done (CI gate, verifier, what-if, benchmark, remediation PRs, Handover Score). Next: Day 3 (video, submission). Decisions in `docs/DECISIONS.md`.
 Date: 2026-11-01. Deadline: Nov 4, 9:00 PM ET. Submit target: Nov 4, ~3:00 PM ET (6+ hours early).
 Inputs read: `AGENTS.md`, all 16 skills in `.agents/skills/`, `prompts/handoffproof_agent_prompt.json`.

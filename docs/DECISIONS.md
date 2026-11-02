@@ -1,5 +1,53 @@
 # Decisions
 
+## UI layout and landing page (2026-11-02)
+
+- Settings uses equal summary cards, with dedicated Slack, GitHub, sharing, and
+  server pages. Applications separates the collection, import form, and individual
+  rehearsal controls. Existing master/detail pages and evidence tables retain their
+  task structure. This avoids expanding forms beside unrelated content.
+- Keep the console at `/` and serve the introduction at `/landing`, linked from
+  the sidebar. Both retain operator authentication. This preserves existing OAuth
+  callback locations and console deep links without making an operator tool public.
+- Bundle a small React landing separately with esbuild and Tailwind; commit its
+  output and embed it in the Go binary. The rest of the console stays buildless.
+  This reuses the actual nine React Bits implementations from the user-provided
+  `code2play` landing without migrating the console to a new framework or relying
+  on remote scripts. CSP now permits same-origin scripts and styles for the bundle.
+- Per the user's follow-up, the landing uses self-hosted Plus Jakarta Sans,
+  fluid page gutters, and actual Phosphor icons. Generate console SVG symbols
+  from the official React package, preserving its paths and license. Keep text
+  readable with line-length limits while allowing page sections to fill the viewport.
+- The user subsequently requested the application's light theme. Use its white
+  and light-gray surfaces, dark text, blue `#0f62fe` actions and purple `#6929c4`
+  accents. Retain the reference's React Bits interactions with light-theme props
+  and a subdued laser effect rather than its original dark palette.
+- Light-theme refinement: explicitly use LaserFlow's `theme="light"` shader for
+  both laser effects, the same application blue, and restrained fog/flare. Capture
+  product screenshots with the content viewport's client width to exclude browser
+  scrollbar chrome without altering the application or editing the image.
+- Latest user direction restores the dark landing theme while retaining the
+  current typography, content, responsive layout, actual Phosphor icons, and
+  product previews. Action controls use square corners; cards retain their shape.
+  Product screenshots now render at twice the usual UI scale, captured at
+  2545 x 1440 with no scrollbar gutter. The hero eagerly requests the original
+  high-resolution asset, without a blurred or lower-quality placeholder.
+- Palette/motion refinement: use the application's neutral charcoal surfaces
+  (`#161616`, `#262626`), blue `#0f62fe`, and purple `#6929c4` / `#8a3ffc`
+  rather than the reference's navy/lavender palette. Magnetic buttons have an
+  8px activation margin and 2px maximum offset, with an overdamped spring,
+  no tilt, and no scale change to keep movement restrained.
+- The landing preview switches among actual Readiness, Evidence, and Settings
+  screenshots, captured from a read-only app review. Readiness and Evidence show
+  existing recorded demo runs, not newly measured results. Integration storage
+  was isolated for the capture. Screenshots replace the illustrative simulator.
+- Reviewed the available Stop Slop and design-critique guidance. Simplified the
+  copy, removed numerical decoration and pseudo-code previews, and used a ruled
+  control list rather than repeating the feature-card grid through the page.
+- The integrity manifest includes `cmd/`, including UI and embedded assets, beyond
+  the protected-path list in AGENTS.md. Refreshing it requires separate approval
+  under hp-protected-paths. Leave the manifest unchanged until that approval.
+
 Record each design choice with date, options considered, and the reason. Include the verified
 Meta Model API details (endpoint, auth, model ID, structured output support).
 

@@ -50,7 +50,7 @@
   .sidenav-foot div { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
   .sidenav-foot .mono { color: var(--text-2); }
   .content { margin-left: 256px; padding-top: 48px; min-height: 100vh; min-width: 0; }
-  .pagewrap { max-width: 1312px; padding: 32px 32px 64px; }
+  .pagewrap { width: 100%; padding: 32px 32px 64px; }
   @media (max-width: 1056px) {
     .header-menu { display: flex; }
     .sidenav { transform: translateX(-100%); transition: transform .2s ease; }
@@ -278,50 +278,69 @@
   .limit-list { margin: 10px 0 0; padding-left: 18px; color: var(--text-2); }
   .limit-list li { margin-bottom: 8px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+  .summary-grid { align-items: stretch; }
+  .settings-card { display:flex; flex-direction:column; padding:28px; min-height:265px; }
+  .card-heading { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+  .settings-card h2 { margin:0 0 8px; }
+  .settings-card p { margin:0 0 12px; }
+  .settings-card .btnrow { margin-top:auto; padding-top:16px; }
+  .card-caption { overflow-wrap:anywhere; }
+  .detail-layout { display:grid; grid-template-columns:minmax(0,3fr) minmax(220px,1fr); gap:32px; align-items:start; }
+  .detail-layout > .tile { padding:32px; min-width:0; }
+  .detail-note { border-top:2px solid var(--blue); padding:20px 0; color:var(--text-2); font-size:14px; }
+  .detail-note h3 { color:var(--text); }
+  .detail-note li { margin-bottom:12px; }
+  .back-link { display:inline-flex; align-items:center; gap:8px; background:none; border:0; padding:0; color:var(--blue); font:inherit; cursor:pointer; margin-bottom:24px; }
+  .eyebrow { text-transform:uppercase; letter-spacing:.12em; font-size:11px; font-weight:600; color:var(--text-2); margin:0 0 12px; }
+  .collection-toolbar { display:flex; justify-content:space-between; align-items:end; gap:24px; margin-bottom:24px; }
+  .collection-toolbar .field { width:min(100%,420px); margin:0; }
+  .application-collection { display:grid; gap:12px; }
+  .application-card { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:24px 28px; }
+  .application-card h2 { margin:0 0 8px; }
+  .application-card > div:last-child { display:flex; align-items:center; gap:24px; }
+  .application-card p { margin-bottom:0; }
+  .setup-help { margin:20px 0; border-top:1px solid var(--border); padding-top:16px; }
+  .setup-help summary { cursor:pointer; color:var(--blue); }
+  .action-menu { position:relative; display:inline-block; }
+  .action-menu > summary { cursor:pointer; color:var(--blue); border:1px solid var(--blue); padding:12px 16px; list-style:none; min-height:48px; }
+  .action-menu > summary::-webkit-details-marker { display:none; }
+  .action-menu > summary { display:flex; align-items:center; gap:16px; }
+  .menu-panel { position:absolute; z-index:5; top:calc(100% + 4px); right:0; width:220px; background:var(--layer); border:1px solid var(--border); box-shadow:0 6px 18px #0002; padding:6px; }
+  .menu-panel a,.menu-panel button { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; text-align:left; padding:12px; background:none; border:0; font:inherit; font-size:14px; color:var(--text); text-decoration:none; cursor:pointer; }
+  .menu-panel a:hover,.menu-panel button:hover { background:var(--bg); }
+  .menu-panel .danger-action { color:var(--tag-red); border-top:1px solid var(--border); }
+  .codebox { overflow-wrap:anywhere; }
+  .detail-page .insight-finding { width:100%; }
+  .detail-page .page-head { grid-template-columns:1fr; }
+  :focus-visible { outline:2px solid var(--blue); outline-offset:4px; }
+  @media(max-width:800px) { .detail-layout { grid-template-columns:1fr; } .application-card,.application-card > div:last-child { align-items:start; flex-direction:column; gap:16px; } .collection-toolbar { align-items:stretch; flex-direction:column; } .detail-layout > .tile { padding:24px; } }
+  @media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation:none!important; transition:none!important; } }
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <!-- IBM Carbon icons (Apache-2.0), inlined for offline use -->
-  <symbol id="i-dashboard" viewBox="0 0 32 32"><path d="M24 21H26V26H24zM20 16H22V26H20zM11 26a5.0059 5.0059 0 01-5-5H8a3 3 0 103-3V16a5 5 0 010 10z"/><path d="M28,2H4A2.002,2.002,0,0,0,2,4V28a2.0023,2.0023,0,0,0,2,2H28a2.0027,2.0027,0,0,0,2-2V4A2.0023,2.0023,0,0,0,28,2Zm0,9H14V4H28ZM12,4v7H4V4ZM4,28V13H28.0007l.0013,15Z"/></symbol>
-  <symbol id="i-play" viewBox="0 0 32 32"><path d="M7,28a1,1,0,0,1-1-1V5a1,1,0,0,1,1.4819-.8763l20,11a1,1,0,0,1,0,1.7525l-20,11A1.0005,1.0005,0,0,1,7,28ZM8,6.6909V25.3088L24.9248,16Z"/></symbol>
-  <symbol id="i-doc" viewBox="0 0 32 32"><path d="M25.7,9.3l-7-7A.9078.9078,0,0,0,18,2H8A2.0059,2.0059,0,0,0,6,4V28a2.0059,2.0059,0,0,0,2,2H24a2.0059,2.0059,0,0,0,2-2V10A.9078.9078,0,0,0,25.7,9.3ZM18,4.4,23.6,10H18ZM24,28H8V4h8v6a2.0059,2.0059,0,0,0,2,2h6Z"/></symbol>
-  <symbol id="i-search" viewBox="0 0 32 32"><path d="M29,27.5859l-7.5521-7.5521a11.0177,11.0177,0,1,0-1.4141,1.4141L27.5859,29ZM4,13a9,9,0,1,1,9,9A9.01,9.01,0,0,1,4,13Z"/></symbol>
-  <symbol id="i-filter" viewBox="0 0 32 32"><path d="M18,28H14a2,2,0,0,1-2-2V18.41L4.59,11A2,2,0,0,1,4,9.59V6A2,2,0,0,1,6,4H26a2,2,0,0,1,2,2V9.59A2,2,0,0,1,27.41,11L20,18.41V26A2,2,0,0,1,18,28ZM6,6V9.59l8,8V26h4V17.59l8-8V6Z"/></symbol>
-  <symbol id="i-warn" viewBox="0 0 32 32"><path d="M16 23a1.5 1.5 0 101.5 1.5A1.5 1.5 0 0016 23zM15 12H17V21H15z"/><path d="M29,30H3a1,1,0,0,1-.8872-1.4614l13-25a1,1,0,0,1,1.7744,0l13,25A1,1,0,0,1,29,30ZM4.6507,28H27.3493l.002-.0033L16.002,6.1714h-.004L4.6487,27.9967Z"/></symbol>
-  <symbol id="i-check" viewBox="0 0 32 32"><path d="M13 24L4 15 5.414 13.586 13 21.171 26.586 7.586 28 9 13 24z"/></symbol>
-  <symbol id="i-arrow" viewBox="0 0 32 32"><path d="M18 6L16.57 7.393 24.15 15 4 15 4 17 24.15 17 16.57 24.573 18 26 28 16 18 6z"/></symbol>
-  <!-- Official Slack mark (Slack brand CDN) and GitHub mark (GitHub via Simple Icons). -->
-  <symbol id="i-slack" viewBox="0 0 54 54"><path d="M11.379 33.9993C11.379 37.1358 8.84512 39.6507 5.7276 39.6507C2.61008 39.6507 0.0572205 37.1168 0.0572205 33.9993C0.0572205 30.8817 2.5911 28.3479 5.70862 28.3479H11.36V33.9993H11.379Z" fill="#E3066A"/><path d="M14.1962 33.9997C14.1962 30.8632 16.7301 28.3483 19.8476 28.3483C22.9651 28.3483 25.499 30.8822 25.499 33.9997V48.1353C25.499 51.2718 22.9651 53.7867 19.8476 53.7867C16.7301 53.7867 14.1962 51.2718 14.1962 48.1353V33.9997Z" fill="#E3066A"/><path d="M19.8662 11.2673C16.7296 11.2673 14.2148 8.73347 14.2148 5.61594C14.2148 2.49842 16.7486 -0.0354538 19.8662 -0.0354538C22.9837 -0.0354538 25.5175 2.49842 25.5175 5.61594V11.2673H19.8662Z" fill="#00B3FF"/><path d="M19.8682 14.1334C23.0047 14.1334 25.5196 16.6673 25.5196 19.7848C25.5196 22.9023 22.9857 25.4362 19.8682 25.4362H5.67566C2.53916 25.4362 0.0242615 22.9023 0.0242615 19.7848C0.0242615 16.6673 2.55814 14.1334 5.67566 14.1334H19.8682Z" fill="#00B3FF"/><path d="M42.5323 19.7853C42.5323 16.6488 45.0662 14.1339 48.1837 14.1339C51.3012 14.1339 53.8351 16.6678 53.8351 19.7853C53.8351 22.9028 51.3012 25.4367 48.1837 25.4367H42.5323V19.7853Z" fill="#41B658"/><path d="M39.7126 19.7934C39.7126 22.9299 37.1787 25.4448 34.0612 25.4448C30.9436 25.4448 28.4098 22.911 28.4098 19.7934V5.61986C28.4098 2.48336 30.9436 -0.0315399 34.0612 -0.0315399C37.1787 -0.0315399 39.7126 2.48336 39.7126 5.61986V19.7934Z" fill="#41B658"/><path d="M34.0376 42.482C37.1741 42.482 39.689 45.0158 39.689 48.1334C39.689 51.2509 37.1552 53.7848 34.0376 53.7848C30.9201 53.7848 28.3862 51.2509 28.3862 48.1334V42.482H34.0376Z" fill="#FCC003"/><path d="M34.0381 39.6507C30.9016 39.6507 28.3867 37.1168 28.3867 33.9993C28.3867 30.8818 30.9206 28.3479 34.0381 28.3479H48.2306C51.3671 28.3479 53.882 30.8818 53.882 33.9993C53.882 37.1168 51.3482 39.6507 48.2306 39.6507H34.0381Z" fill="#FCC003"/></symbol>
-  <symbol id="i-github" viewBox="0 0 24 24"><path fill="#181717" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></symbol>
-  <symbol id="i-close" viewBox="0 0 32 32"><path d="M17.414 16 24 9.414 22.586 8 16 14.586 9.414 8 8 9.414 14.586 16 8 22.586 9.414 24 16 17.414 22.586 24 24 22.586 17.414 16z"/></symbol>
-  <symbol id="i-chev-l" viewBox="0 0 32 32"><path d="M20 6l1.414 1.414L13.828 15l7.586 7.586L20 24l-9-9z"/></symbol>
-  <symbol id="i-chev-r" viewBox="0 0 32 32"><path d="m12 24-1.414-1.414L18.172 15l-7.586-7.586L12 6l9 9z"/></symbol>
-  <symbol id="i-chart" viewBox="0 0 32 32"><path d="M4,2H2V28a2,2,0,0,0,2,2H30V28H4Z"/><path d="M30,9H23v2h3.59L19,18.59l-4.29-4.3a1,1,0,0,0-1.42,0L6,21.59,7.41,23,14,16.41l4.29,4.3a1,1,0,0,0,1.42,0L28,12.41V16h2Z"/></symbol>
-  <symbol id="i-shield" viewBox="0 0 32 32"><path d="M14 16.59L11.41 14 10 15.41 14 19.41 22 11.41 20.59 10 14 16.59z"/><path d="M16,30,9.8242,26.7071A10.9818,10.9818,0,0,1,4,17V4A2.0021,2.0021,0,0,1,6,2H26a2.0021,2.0021,0,0,1,2,2V17a10.9818,10.9818,0,0,1-5.8242,9.7071ZM6,4V17a8.9852,8.9852,0,0,0,4.7656,7.9423L16,27.7333l5.2344-2.791A8.9852,8.9852,0,0,0,26,17V4Z"/></symbol>
-  <symbol id="i-menu" viewBox="0 0 32 32"><path d="M4 6H28V8H4zM4 15H28V17H4zM4 24H28V26H4z"/></symbol>
-
-</svg>
+<!-- Phosphor icons: generated from @phosphor-icons/react into /landing/phosphor.svg -->
 <header class="header">
-  <button class="header-menu" id="menubtn" aria-label="Open navigation" aria-expanded="false"><svg class="ic" style="width:20px;height:20px"><use href="#i-menu"/></svg></button>
+  <button class="header-menu" id="menubtn" aria-label="Open navigation" aria-expanded="false"><svg class="ic" style="width:20px;height:20px"><use href="/landing/phosphor.svg#i-menu"/></svg></button>
   <a class="header-name" href="#start"><b>HandoffProof</b><span>Control Room</span></a>
   <div class="header-actions">
-    <a class="header-link" href="#settings" data-page-link="settings"><svg class="ic"><use href="#i-filter"/></svg>Settings</a>
+    <a class="header-link" href="#settings" data-page-link="settings"><svg class="ic"><use href="/landing/phosphor.svg#i-filter"/></svg>Settings</a>
     <span class="header-status"><span class="dot"></span><span id="hdr">loading…</span></span>
   </div>
 </header>
 <nav class="sidenav" aria-label="Main">
   <div class="nav-group">Start</div>
-  <button class="nav-link active" data-page="start"><svg class="ic"><use href="#i-check"/></svg>Get started</button>
+  <button class="nav-link active" data-page="start"><svg class="ic"><use href="/landing/phosphor.svg#i-check"/></svg>Get started</button>
   <div class="nav-group">Control Room</div>
-  <button class="nav-link" data-page="applications"><svg class="ic"><use href="#i-doc"/></svg>Applications</button>
-  <button class="nav-link" data-page="overview"><svg class="ic"><use href="#i-dashboard"/></svg>Readiness</button>
-  <button class="nav-link" data-page="drills"><svg class="ic"><use href="#i-play"/></svg>Rehearse</button>
-  <button class="nav-link" data-page="evidence"><svg class="ic"><use href="#i-doc"/></svg>Evidence</button>
-  <button class="nav-link" data-page="insights"><svg class="ic"><use href="#i-chart"/></svg>Insights</button>
+  <button class="nav-link" data-page="applications"><svg class="ic"><use href="/landing/phosphor.svg#i-doc"/></svg>Applications</button>
+  <button class="nav-link" data-page="overview"><svg class="ic"><use href="/landing/phosphor.svg#i-dashboard"/></svg>Readiness</button>
+  <button class="nav-link" data-page="drills"><svg class="ic"><use href="/landing/phosphor.svg#i-play"/></svg>Rehearse</button>
+  <button class="nav-link" data-page="evidence"><svg class="ic"><use href="/landing/phosphor.svg#i-doc"/></svg>Evidence</button>
+  <button class="nav-link" data-page="insights"><svg class="ic"><use href="/landing/phosphor.svg#i-chart"/></svg>Insights</button>
   <div class="nav-group">Project</div>
-  <button class="nav-link" data-page="settings"><svg class="ic"><use href="#i-filter"/></svg>Settings</button>
-  <button class="nav-link" data-page="about"><svg class="ic"><use href="#i-doc"/></svg>About HOP</button>
+  <button class="nav-link" data-page="settings"><svg class="ic"><use href="/landing/phosphor.svg#i-filter"/></svg>Settings</button>
+  <a class="nav-link" href="/landing" style="display:flex;text-decoration:none"><svg class="ic"><use href="/landing/phosphor.svg#i-arrow"/></svg>Landing page</a>
+  <button class="nav-link" data-page="about"><svg class="ic"><use href="/landing/phosphor.svg#i-doc"/></svg>About HOP</button>
   <div class="sidenav-foot" id="sysfoot">
     <div><span>Verdicts</span><span class="mono">controller</span></div>
     <div><span>Model</span><span class="mono">proposes only</span></div>
@@ -336,7 +355,7 @@
         <h1>Start your first <strong>handover rehearsal.</strong></h1>
         <p>Follow these steps in order. Each one opens the real page where the work happens - readiness first, then a safe rehearsal, the evidence it produced, and the report you can hand over.</p>
         <div class="btnrow">
-          <button class="btn" data-start-drill="0">Run the baseline rehearsal <svg class="ic"><use href="#i-arrow"/></svg></button>
+          <button class="btn" data-start-drill="0">Run the baseline rehearsal <svg class="ic"><use href="/landing/phosphor.svg#i-arrow"/></svg></button>
           <button class="btn ghost" data-goto="overview">Check readiness first</button>
         </div>
       </div>
@@ -345,12 +364,12 @@
     <div class="steps" id="startsteps" aria-label="Getting started checklist"></div>
     <div class="grid2">
       <section class="tile">
-        <h2><svg class="ic"><use href="#i-shield"/></svg>How to read the result</h2>
+        <h2><svg class="ic"><use href="/landing/phosphor.svg#i-shield"/></svg>How to read the result</h2>
         <p class="small muted">A green result means the controller observed the workflow succeed. A red result is useful: it is the rehearsal catching a dependency before the real handover does. The model can explain and propose a repair, but it never changes a verdict.</p>
         <button class="btn ghost" data-goto="about">Read how HandoffProof works</button>
       </section>
       <section class="tile">
-        <h2><svg class="ic"><use href="#i-filter"/></svg>Before you invite the team</h2>
+        <h2><svg class="ic"><use href="/landing/phosphor.svg#i-filter"/></svg>Before you invite the team</h2>
         <p class="small muted">Connect Slack for report summaries and GitHub for the remediation repository in Settings. Only console operators can change integrations; people with a read-only share link can view reports and evidence.</p>
         <button class="btn ghost" data-goto="settings">Open Settings</button>
       </section>
@@ -360,12 +379,12 @@
   <!-- APPLICATIONS -->
   <section class="page" id="page-applications">
     <div class="page-head">
-      <div><h1>Test <strong>your own application.</strong></h1><p>Import a Docker Compose application, describe its real workflows in a profile, validate it, then run HandoffProof rehearsals against it. Secrets are encrypted on the server and never returned to the browser.</p></div>
+      <div><h1>Your <strong>applications.</strong></h1><p>Find an application, review its workflows, and open its rehearsal workspace.</p></div>
       <img class="illo-sm" src="/assets/illustrations/rehearse.svg" alt="Storyset illustration: preparing a rehearsal" width="180" height="180">
     </div>
-    <div class="settings-grid">
-      <section class="tile" aria-labelledby="app-add-title">
-        <h2 id="app-add-title"><svg class="ic"><use href="#i-doc"/></svg>Add application</h2>
+<div class="collection-toolbar"><div class="field"><label for="application-search">Find an application</label><input id="application-search" type="search" placeholder="Search by name or repository"></div><button class="btn" data-goto="application-new">Add application <span aria-hidden="true"><svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-plus"/></svg></span></button></div><div id="applications-list" class="application-collection" aria-live="polite"><p class="empty">Loading applications…</p></div></section>
+<section class="page detail-page" id="page-application-new"><button class="back-link" data-goto="applications"><svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-back"/></svg> Applications</button><div class="page-head"><div><p class="eyebrow">Applications / Add application</p><h1>Add an <strong>application.</strong></h1><p>Connect your source, describe its workflows, then import it for a rehearsal.</p></div></div><div class="detail-layout">      <section class="tile" aria-labelledby="app-add-title">
+        <h2 id="app-add-title"><svg class="ic"><use href="/landing/phosphor.svg#i-doc"/></svg>Add application</h2>
         <div class="field"><label for="app-source-kind">Source</label><select id="app-source-kind"><option value="local">Local folder on this server</option><option value="github">GitHub repository (connected account)</option></select></div>
         <div class="field"><label for="app-name">Application name</label><input id="app-name" type="text" placeholder="Customer portal"></div>
         <div class="field" id="app-local-wrap"><label for="app-local-path">Local application folder</label><input id="app-local-path" type="text" placeholder="D:\path\to\your-app"><span class="hint">The folder must contain your Compose file. HandoffProof copies it into its server-side application store.</span></div>
@@ -374,40 +393,34 @@
         <div class="field"><label for="app-env">Test environment values</label><textarea id="app-env" rows="5" class="mono" placeholder="DATABASE_URL=postgres://...&#10;MAIL_API_TOKEN=test-token" style="width:100%;background:var(--layer);color:var(--text);border:1px solid var(--border-strong);padding:12px;font:inherit"></textarea><span class="hint">One KEY=value per line. Use sandbox/test credentials only. Values are encrypted on the server.</span></div>
         <div class="btnrow"><button class="btn" id="app-create" type="button">Import and validate application</button></div>
         <div class="small muted" id="app-create-msg" role="status"></div>
-      </section>
-      <section class="tile" aria-labelledby="app-list-title">
-        <h2 id="app-list-title"><svg class="ic"><use href="#i-dashboard"/></svg>Your applications</h2>
-        <p class="muted small">Validate first, run the baseline, then run a credential, configuration, or backup rehearsal. Results are written to Evidence with the application ID and source hash.</p>
-        <div id="applications-list"><p class="muted small">Loading applications…</p></div>
-      </section>
-    </div>
-  </section>
+      </section><aside class="detail-note"><h3>Before you begin</h3><p>Have your Docker Compose application and HandoffProof profile ready. Use test credentials for your rehearsal environment.</p><ol><li>Choose a local folder or GitHub source.</li><li>Describe the workflows in your profile.</li><li>Import, validate, then run a baseline.</li></ol><button class="btn ghost" data-goto="settings-github">Manage GitHub <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></button></aside></div></section>
+<section class="page detail-page" id="page-application-detail"><button class="back-link" data-goto="applications"><svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-back"/></svg> Applications</button><div class="page-head"><div><p class="eyebrow">Applications / Workspace</p><h1 id="application-detail-title">Application</h1><p>Review the source, validate its setup, and run a rehearsal.</p></div></div><div id="application-detail-body"></div></section>
 
   <!-- READINESS -->
   <section class="page" id="page-overview">
     <div class="leadspace"><div class="leadgrid"><div>
       <h1>Rehearse the day your <strong>developer leaves.</strong></h1>
       <p class="sub">Controller-executed drills prove the app survives its author. The model proposes, explains, and repairs - verdicts come from evidence only.</p>
-      <button class="btn" id="hero-drill">Run a drill <svg class="ic"><use href="#i-arrow"/></svg></button>
+      <button class="btn" id="hero-drill">Run a drill <svg class="ic"><use href="/landing/phosphor.svg#i-arrow"/></svg></button>
       <a class="btn darkghost" href="/report" target="_blank" rel="noopener" style="margin-left:8px">Open evidence report</a>
     </div><img class="illo" src="/assets/illustrations/handover.svg" alt="Storyset illustration: two people shaking hands on a handover agreement" width="330" height="330"></div></div>
     <div class="stats" id="kpis"></div>
     <div class="scorewrap">
       <div class="tile">
-        <h2><svg class="ic"><use href="#i-chart"/></svg>Handover Score</h2>
+        <h2><svg class="ic"><use href="/landing/phosphor.svg#i-chart"/></svg>Handover Score</h2>
         <div class="scorebig"><span id="scorebig">–</span><small> /100</small></div>
         <p class="muted small" id="scorebasis">computing…</p>
         <div class="trend" id="trend"></div>
       </div>
       <div class="tile">
-        <h2><svg class="ic"><use href="#i-dashboard"/></svg>Score components</h2>
+        <h2><svg class="ic"><use href="/landing/phosphor.svg#i-dashboard"/></svg>Score components</h2>
         <div id="compbars"></div>
         <p class="muted small">Weights: workflows 40 · faults 30 · documentation 20 · backup 10. Deterministic - the model never scores itself.</p>
       </div>
     </div>
     <div class="masterdetail">
       <div class="tile" style="padding:8px 8px 16px">
-        <h2 style="padding:14px 14px 4px"><svg class="ic"><use href="#i-warn"/></svg>Planted faults <span class="tag caught" id="faultcount" style="margin-left:auto"></span></h2>
+        <h2 style="padding:14px 14px 4px"><svg class="ic"><use href="/landing/phosphor.svg#i-warn"/></svg>Planted faults <span class="tag caught" id="faultcount" style="margin-left:auto"></span></h2>
         <div id="faultlist"></div>
         <p class="muted small" style="padding:8px 14px 0">Ground truth lives outside the agent's reach. Caught counts only from controller evidence or the deterministic scan.</p>
       </div>
@@ -420,14 +433,14 @@
     <div class="leadspace"><div class="leadgrid"><div>
       <h1>Break it <strong>before the handover does.</strong></h1>
       <p class="sub">Each drill boots the app in a fresh, isolated Docker sandbox - no published ports, random tokens - and the controller asserts real workflows.</p>
-      <button class="btn" id="scanbtn"><svg class="ic"><use href="#i-search"/></svg>Run static scan</button>
+      <button class="btn" id="scanbtn"><svg class="ic"><use href="/landing/phosphor.svg#i-search"/></svg>Run static scan</button>
       <span class="small" id="scanout" style="margin-left:10px;color:#c6c6c6"></span>
     </div><img class="illo" src="/assets/illustrations/rehearse.svg" alt="Storyset illustration: two people debugging machinery" width="330" height="330"></div></div>
     <div class="drillgrid" id="drillcards" style="margin-top:16px"></div>
     <div class="grid2">
       <div class="detail" style="min-height:0" id="drilldetail"></div>
       <div class="tile">
-        <h2><svg class="ic"><use href="#i-filter"/></svg>What-if: remove a dependency</h2>
+        <h2><svg class="ic"><use href="/landing/phosphor.svg#i-filter"/></svg>What-if: remove a dependency</h2>
         <p class="muted small">Preview which workflows break and which drill would confirm it. Preview only - nothing is executed.</p>
         <p><select id="whatifnode"></select> <button class="btn" id="whatifbtn">Simulate</button></p>
         <div id="whatifout" class="small"></div>
@@ -447,7 +460,7 @@
       <input type="search" id="evq" placeholder="Search assertions…" aria-label="Search evidence">
       <span class="muted small" id="evcount"></span>
       <span style="flex:1"></span>
-      <button class="btn" id="fullreport-btn" aria-haspopup="dialog"><svg class="ic"><use href="#i-doc"/></svg>Full report</button>
+      <button class="btn" id="fullreport-btn" aria-haspopup="dialog"><svg class="ic"><use href="/landing/phosphor.svg#i-doc"/></svg>Full report</button>
     </div>
     <table style="margin-top:12px"><thead><tr><th>Evidence</th><th>Drill</th><th>Workflow</th><th>Assertion</th><th>Result</th></tr></thead><tbody id="ev"></tbody></table>
     <div class="pagination" id="ev-pagination" aria-label="Evidence pagination">
@@ -458,9 +471,9 @@
       </div>
       <div class="pagination-nav">
         <button class="page-btn" id="ev-first" type="button" aria-label="First page">First</button>
-        <button class="page-btn" id="ev-prev" type="button" aria-label="Previous page"><svg class="ic"><use href="#i-chev-l"/></svg></button>
+        <button class="page-btn" id="ev-prev" type="button" aria-label="Previous page"><svg class="ic"><use href="/landing/phosphor.svg#i-chev-l"/></svg></button>
         <div class="pagination-pages" id="ev-pages"></div>
-        <button class="page-btn" id="ev-next" type="button" aria-label="Next page"><svg class="ic"><use href="#i-chev-r"/></svg></button>
+        <button class="page-btn" id="ev-next" type="button" aria-label="Next page"><svg class="ic"><use href="/landing/phosphor.svg#i-chev-r"/></svg></button>
         <button class="page-btn" id="ev-last" type="button" aria-label="Last page">Last</button>
       </div>
     </div>
@@ -475,7 +488,7 @@
     <div class="stats" id="insightstats" aria-label="Insights totals"></div>
     <div class="insights-layout">
       <section class="tile" aria-labelledby="insights-findings-title">
-        <h2 id="insights-findings-title"><svg class="ic"><use href="#i-search"/></svg>Findings</h2>
+        <h2 id="insights-findings-title"><svg class="ic"><use href="/landing/phosphor.svg#i-search"/></svg>Findings</h2>
         <p class="muted small">Start with failures. Every observed finding should carry evidence IDs and a source reference; inferred risks and untested dependencies stay clearly labelled.</p>
         <div class="insight-toolbar">
           <div class="segmented" role="group" aria-label="Filter findings">
@@ -491,11 +504,11 @@
       </section>
       <aside class="insights-rail">
         <section class="tile" aria-labelledby="insights-assessment-title">
-          <h2 id="insights-assessment-title"><svg class="ic"><use href="#i-check"/></svg>Final assessment</h2>
+          <h2 id="insights-assessment-title"><svg class="ic"><use href="/landing/phosphor.svg#i-check"/></svg>Final assessment</h2>
           <div id="assess"></div>
         </section>
         <section class="tile">
-          <h2><svg class="ic"><use href="#i-shield"/></svg>How to act on this</h2>
+          <h2><svg class="ic"><use href="/landing/phosphor.svg#i-shield"/></svg>How to act on this</h2>
           <p class="small muted">Fix observed failures first. Treat inferred risks as investigation leads, and keep untested dependencies visible in the handover until a drill covers them.</p>
           <div class="btnrow">
             <button class="btn" type="button" id="insights-open-report">Open full report</button>
@@ -509,22 +522,22 @@
   <!-- SETTINGS -->
   <section class="page" id="page-settings">
     <div class="page-head">
-      <div><h1>Settings & <strong>integrations.</strong></h1><p>Connect the tools your team already uses. Operators can change integrations; everyone else sees the current status. Secrets stay on the server and are never shown here.</p></div>
+      <div><h1>Settings & <strong>integrations.</strong></h1><p>Manage your team connections, report preferences, and workspace settings.</p></div>
       <img class="illo-sm" src="/assets/illustrations/about.svg" alt="Storyset illustration: a team working together" width="180" height="180">
     </div>
-    <div class="settings-grid">
-      <section class="tile" aria-labelledby="settings-slack-title">
-        <h2 id="settings-slack-title"><svg class="brand-ic sm"><use href="#i-slack"/></svg>Slack</h2>
+<div class="settings-grid summary-grid"><section class="tile settings-card"><div class="card-heading"><svg class="brand-ic"><use href="/landing/phosphor.svg#i-slack"/></svg><span class="tag" id="summary-slack-status">Loading…</span></div><h2>Slack</h2><p class="muted">Send report summaries to your team.</p><p class="small muted card-caption" id="summary-slack-caption">Managed securely on this server.</p><div class="btnrow"><button class="btn ghost" data-goto="settings-slack" id="summary-slack-action">Connection settings <span aria-hidden="true"><svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></span></button></div></section><section class="tile settings-card"><div class="card-heading"><svg class="brand-ic"><use href="/landing/phosphor.svg#i-github"/></svg><span class="tag" id="summary-github-status">Loading…</span></div><h2>GitHub</h2><p class="muted">Choose the repository for remediation work.</p><p class="small muted card-caption" id="summary-github-caption">Managed securely on this server.</p><div class="btnrow"><button class="btn ghost" data-goto="settings-github" id="summary-github-action">Connection settings <span aria-hidden="true"><svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></span></button></div></section><section class="tile settings-card"><div class="card-heading"><svg class="brand-ic"><use href="/landing/phosphor.svg#i-doc"/></svg><span class="tag" id="summary-sharing-status">Preferences</span></div><h2>Report & sharing</h2><p class="muted">Manage evidence display and share reports.</p><p class="small muted card-caption" id="summary-sharing-caption">Read-only links expire after 24 hours.</p><div class="btnrow"><button class="btn ghost" data-goto="settings-sharing" id="summary-sharing-action">Manage <span aria-hidden="true"><svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></span></button></div></section><section class="tile settings-card"><div class="card-heading"><svg class="brand-ic"><use href="/landing/phosphor.svg#i-shield"/></svg><span class="tag" id="summary-server-status">Runtime</span></div><h2>Server & safety</h2><p class="muted">Review runtime configuration and safeguards.</p><p class="small muted card-caption" id="summary-server-caption">Managed securely on this server.</p><div class="btnrow"><button class="btn ghost" data-goto="settings-server" id="summary-server-action">Manage <span aria-hidden="true"><svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></span></button></div></section></div></section>
+<section class="page detail-page" id="page-settings-slack"><button class="back-link" data-goto="settings"><svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-back"/></svg> Settings</button><div class="page-head"><div><p class="eyebrow">Settings / Slack</p><h1>Slack</h1><p>Send report summaries to your team.</p></div></div><div class="detail-layout">      <section class="tile" aria-labelledby="settings-slack-title">
+        <h2 id="settings-slack-title"><svg class="brand-ic sm"><use href="/landing/phosphor.svg#i-slack"/></svg>Slack</h2>
         <p class="muted small">Post the counts-only report summary to a channel your team watches.</p>
         <div id="slack-settings-body"><p class="muted small">Loading Slack status…</p></div>
-      </section>
-      <section class="tile" aria-labelledby="settings-github-title">
-        <h2 id="settings-github-title"><svg class="brand-ic sm"><use href="#i-github"/></svg>GitHub</h2>
+      </section><aside class="detail-note"><h3>Keep your team informed</h3><p>Post a summary after reviewing the latest evidence. Choose your workspace and channel during Slack authorization.</p><a class="text-link" href="/landing">About HandoffProof <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></a></aside></div></section>
+<section class="page detail-page" id="page-settings-github"><button class="back-link" data-goto="settings"><svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-back"/></svg> Settings</button><div class="page-head"><div><p class="eyebrow">Settings / GitHub</p><h1>GitHub</h1><p>Choose the repository for remediation work.</p></div></div><div class="detail-layout">      <section class="tile" aria-labelledby="settings-github-title">
+        <h2 id="settings-github-title"><svg class="brand-ic sm"><use href="/landing/phosphor.svg#i-github"/></svg>GitHub</h2>
         <p class="muted small">Connect GitHub and choose the repository HandoffProof should use for remediation work.</p>
         <div id="github-settings-body"><p class="muted small">Loading GitHub status…</p></div>
-      </section>
-      <section class="tile" aria-labelledby="settings-report-title">
-        <h2 id="settings-report-title"><svg class="ic"><use href="#i-doc"/></svg>Report & sharing</h2>
+      </section><aside class="detail-note"><h3>A focused connection</h3><p>Select the repository and branch HandoffProof should use for remediation. You can review or change this connection here at any time.</p><a class="text-link" href="/landing">About HandoffProof <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></a></aside></div></section>
+<section class="page detail-page" id="page-settings-sharing"><button class="back-link" data-goto="settings"><svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-back"/></svg> Settings</button><div class="page-head"><div><p class="eyebrow">Settings / Report & sharing</p><h1>Report & sharing</h1><p>Manage evidence display and share reports.</p></div></div><div class="detail-layout">      <section class="tile" aria-labelledby="settings-report-title">
+        <h2 id="settings-report-title"><svg class="ic"><use href="/landing/phosphor.svg#i-doc"/></svg>Report & sharing</h2>
         <div class="setting-row"><span class="k">Read-only share links</span><span class="v">24 hours</span></div>
         <div class="setting-row"><span class="k">Download</span><span class="v">Themed PDF (print)</span></div>
         <div class="field">
@@ -533,15 +546,12 @@
           <span class="hint">Saved in this browser and used by Evidence and the generated report.</span>
         </div>
         <div class="btnrow"><button class="btn" id="setting-open-report" type="button">Open full report</button><button class="btn ghost" data-goto="evidence" type="button">Review evidence</button></div>
-      </section>
-      <section class="tile" aria-labelledby="settings-server-title">
-        <h2 id="settings-server-title"><svg class="ic"><use href="#i-shield"/></svg>Server & safety</h2>
+      </section><aside class="detail-note"><h3>Your workspace preferences</h3><p>These settings help you review and share evidence from your rehearsals.</p><a class="text-link" href="/landing">About HandoffProof <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></a></aside></div></section>
+<section class="page detail-page" id="page-settings-server"><button class="back-link" data-goto="settings"><svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-back"/></svg> Settings</button><div class="page-head"><div><p class="eyebrow">Settings / Server & safety</p><h1>Server & safety</h1><p>Review runtime configuration and safeguards.</p></div></div><div class="detail-layout">      <section class="tile" aria-labelledby="settings-server-title">
+        <h2 id="settings-server-title"><svg class="ic"><use href="/landing/phosphor.svg#i-shield"/></svg>Server & safety</h2>
         <div id="server-settings-body"><p class="muted small">Loading server status…</p></div>
         <p class="small muted">Verdicts are issued by the controller only. The model proposes, explains, and repairs; it cannot mark anything passed or failed.</p>
-      </section>
-    </div>
-  </section>
-
+      </section><aside class="detail-note"><h3>Your workspace preferences</h3><p>These settings help you review and share evidence from your rehearsals.</p><a class="text-link" href="/landing">About HandoffProof <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></a></aside></div></section>
   <!-- ABOUT -->
   <section class="page" id="page-about">
     <div style="display:flex;gap:24px;align-items:center">
@@ -641,16 +651,16 @@
     </div>
   </section>
 
-  <footer><svg class="ic"><use href="#i-shield"/></svg><span>Pass/fail is decided by the controller. The model proposes, explains and repairs - it never issues a verdict.</span> <span>Illustrations by <a href="https://storyset.com" target="_blank" rel="noopener">Storyset</a>.</span></footer>
+  <footer><svg class="ic"><use href="/landing/phosphor.svg#i-shield"/></svg><span>Pass/fail is decided by the controller. The model proposes, explains and repairs - it never issues a verdict.</span> <span>Illustrations by <a href="https://storyset.com" target="_blank" rel="noopener">Storyset</a>.</span></footer>
 </div></main>
 <div class="share-backdrop" id="share-backdrop" hidden>
   <div class="share-dialog" role="dialog" aria-modal="true" aria-labelledby="share-title" aria-describedby="share-desc">
-    <button class="share-close-icon" id="share-x" type="button" aria-label="Close share dialog"><svg class="ic"><use href="#i-close"/></svg></button>
+    <button class="share-close-icon" id="share-x" type="button" aria-label="Close share dialog"><svg class="ic"><use href="/landing/phosphor.svg#i-close"/></svg></button>
     <h2 id="share-title">Share this report</h2>
     <p class="muted small" id="share-desc">The full HTML evidence report carries the manifest integrity check.</p>
-    <button class="share-opt" id="share-copy" type="button"><span><b>Copy link</b><span class="muted small">Anyone with the link can read the report for 24 hours. No sign-in or token typing.</span></span><svg class="ic"><use href="#i-arrow"/></svg></button>
-    <button class="share-opt" id="share-pdf" type="button"><span><b>Download PDF</b><span class="muted small">Open the themed report and save it as PDF. Print includes every evidence row.</span></span><svg class="ic"><use href="#i-arrow"/></svg></button>
-    <button class="share-opt" id="share-slack" type="button"><svg class="brand-ic"><use href="#i-slack"/></svg><span><b id="share-slack-title">Post to Slack</b><span class="muted small" id="share-slack-sub">Send a counts-only summary. The webhook and console token never leave the server.</span></span><svg class="ic"><use href="#i-arrow"/></svg></button>
+    <button class="share-opt" id="share-copy" type="button"><span><b>Copy link</b><span class="muted small">Anyone with the link can read the report for 24 hours. No sign-in or token typing.</span></span><svg class="ic"><use href="/landing/phosphor.svg#i-arrow"/></svg></button>
+    <button class="share-opt" id="share-pdf" type="button"><span><b>Download PDF</b><span class="muted small">Open the themed report and save it as PDF. Print includes every evidence row.</span></span><svg class="ic"><use href="/landing/phosphor.svg#i-arrow"/></svg></button>
+    <button class="share-opt" id="share-slack" type="button"><svg class="brand-ic"><use href="/landing/phosphor.svg#i-slack"/></svg><span><b id="share-slack-title">Post to Slack</b><span class="muted small" id="share-slack-sub">Send a counts-only summary. The webhook and console token never leave the server.</span></span><svg class="ic"><use href="/landing/phosphor.svg#i-arrow"/></svg></button>
     <div class="share-footer">
       <div class="muted small" id="share-status" role="status" aria-live="polite"></div>
       <div style="display:flex;gap:8px;align-items:center">
@@ -665,16 +675,23 @@ const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 async function getJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
 function badge(ok, yes, no) { return '<span class="tag ' + (ok ? 'pass' : 'fail') + '">' + (ok ? yes : no) + '</span>'; }
-const PAGES = ['start', 'applications', 'overview', 'drills', 'evidence', 'insights', 'settings', 'about'];
+let applicationsState = [];
+let selectedApplication = '';
+const PAGES = ['start', 'applications', 'overview', 'drills', 'evidence', 'insights', 'settings', 'about', 'settings-slack', 'settings-github', 'settings-sharing', 'settings-server', 'application-new', 'application-detail'];
 function showPage(name) {
+  if (name.startsWith('application/')) { selectedApplication = decodeURIComponent(name.slice(12)); name = 'application-detail'; renderApplicationDetail(); }
   if (!PAGES.includes(name)) name = 'start';
-  document.querySelectorAll('[data-page]').forEach(x => x.classList.toggle('active', x.dataset.page === name));
+  document.querySelectorAll('[data-page]').forEach(x => x.classList.toggle('active', x.dataset.page === (name.startsWith('settings-') ? 'settings' : name.startsWith('application-') ? 'applications' : name)));
   document.querySelectorAll('.page').forEach(v => v.classList.toggle('active', v.id === 'page-' + name));
 }
-document.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => { showPage(b.dataset.page); history.replaceState(null, '', '#' + b.dataset.page); document.body.classList.remove('nav-open'); }));
+document.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => { gotoPage(b.dataset.page); document.body.classList.remove('nav-open'); }));
 document.querySelectorAll('[data-page-link]').forEach(a => a.addEventListener('click', () => { showPage(a.dataset.pageLink); document.body.classList.remove('nav-open'); }));
-function gotoPage(name) { showPage(name); history.replaceState(null, '', '#' + name); window.scrollTo({ top: 0, behavior: 'smooth' }); }
-document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => gotoPage(b.dataset.goto)));
+function gotoPage(name) { showPage(name); history.pushState(null, '', '#' + name); window.scrollTo({ top: 0, behavior: 'instant' }); const h = document.querySelector('.page.active h1'); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } }
+document.addEventListener('click', e => { const b = e.target.closest('[data-goto]'); if (b) gotoPage(b.dataset.goto); });
+document.addEventListener('click', e => { document.querySelectorAll('.action-menu[open]').forEach(menu => { if (!menu.contains(e.target)) menu.open = false; }); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.action-menu[open]').forEach(menu => { menu.open = false; menu.querySelector('summary').focus(); }); });
+addEventListener('hashchange', () => showPage(location.hash.slice(1)));
+addEventListener('popstate', () => showPage(location.hash.slice(1)));
 document.querySelectorAll('[data-start-drill]').forEach(b => b.addEventListener('click', () => { drillSel = Number(b.dataset.startDrill) || 0; renderDrills(false); gotoPage('drills'); }));
 $('menubtn').addEventListener('click', () => {
   const open = document.body.classList.toggle('nav-open');
@@ -768,7 +785,7 @@ function renderFaults() {
       '<div class="cell"><div class="k">What to do before handover</div><p>' + esc(g.next) + '</p></div>' +
       '<div class="cell"><div class="k">Ground truth rule</div><p>A fault counts as caught only when a controller drill observed the failure, or the deterministic static scan flagged it. The model cannot mark a fault caught.</p></div>' +
     '</div>' +
-    '<div class="fault-actions"><button class="btn" type="button" data-fault-evidence>Open evidence <svg class="ic"><use href="#i-arrow"/></svg></button>' +
+    '<div class="fault-actions"><button class="btn" type="button" data-fault-evidence>Open evidence <svg class="ic"><use href="/landing/phosphor.svg#i-arrow"/></svg></button>' +
     '<button class="btn darkghost" type="button" data-fault-drill="' + g.drill + '">' + esc(g.drillLabel) + '</button></div>';
   const evBtn = document.querySelector('[data-fault-evidence]');
   if (evBtn) evBtn.addEventListener('click', () => gotoPage('evidence'));
@@ -787,14 +804,14 @@ let drillSel = 1;
 function renderDrills(running) {
   $('drillcards').innerHTML = DRILLS.map(([name, label, desc], i) =>
     '<button class="drillcard' + (i === drillSel ? ' sel' : '') + '" data-drillcard="' + i + '">' +
-    '<svg class="ic big"><use href="#i-play"/></svg><b>' + esc(label) + '</b><span>' + esc(desc) + '</span>' +
-    '<span class="go"><svg class="ic"><use href="#i-arrow"/></svg></span></button>').join('');
+    '<svg class="ic big"><use href="/landing/phosphor.svg#i-play"/></svg><b>' + esc(label) + '</b><span>' + esc(desc) + '</span>' +
+    '<span class="go"><svg class="ic"><use href="/landing/phosphor.svg#i-arrow"/></svg></span></button>').join('');
   document.querySelectorAll('[data-drillcard]').forEach(b => b.addEventListener('click', () => { drillSel = Number(b.dataset.drillcard); renderDrills(false); }));
   const [name, label, desc] = DRILLS[drillSel];
   $('drilldetail').innerHTML =
     '<div class="dlbl">Selected drill</div><div class="dtitle">' + esc(label) + '</div>' +
     '<p class="small muted">' + esc(desc) + '</p><p class="mono small muted">' + esc(name) + '</p>' +
-    '<button class="btn" id="runbtn"' + (running ? ' disabled' : '') + '><svg class="ic"><use href="#i-play"/></svg>' + (running ? 'Running…' : 'Run drill') + '</button>' +
+    '<button class="btn" id="runbtn"' + (running ? ' disabled' : '') + '><svg class="ic"><use href="/landing/phosphor.svg#i-play"/></svg>' + (running ? 'Running…' : 'Run drill') + '</button>' +
     ' <span class="small" id="jobstatus">' + (running ? 'Sandbox booting…' : 'Fresh isolated sandbox per run.') + '</span>';
   const rb = $('runbtn');
   if (rb && !running) rb.addEventListener('click', () => runDrill(name));
@@ -1007,8 +1024,8 @@ $('share-slack-disconnect').addEventListener('click', async () => {
 const slackResult = new URLSearchParams(location.search).get('slack');
 if (slackResult === 'connected' || slackResult === 'error') {
   if (location.hash === '#settings') {
-    showPage('settings');
-    history.replaceState(null, '', '#settings');
+    showPage('settings-slack');
+    history.replaceState(null, '', '#settings-slack');
   } else {
     showPage('evidence');
     openShare();
@@ -1052,14 +1069,18 @@ function renderSlackSettings() {
   const el = $('slack-settings-body');
   if (!el) return;
   const s = slackState || {};
+  $('summary-slack-status').textContent = s.connected ? 'Connected' : 'Not connected';
+  $('summary-slack-status').className = 'tag ' + (s.connected ? 'pass' : '');
+  $('summary-slack-action').innerHTML = (s.connected ? 'Manage connection' : 'Connect Slack') + ' <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg>';
+  $('summary-slack-caption').textContent = s.connected ? (s.team_name || 'Connection active') : 'Set up this connection to get started.';
   if (s.connected) {
     el.innerHTML = settingRow('Status', 'Connected') + settingRow('Workspace', s.team_name) + settingRow('Channel', s.channel) + settingRow('Connected by', s.source === 'oauth' ? 'Add to Slack (OAuth)' : 'Server environment') +
-      '<div class="btnrow"><button class="btn" id="settings-slack-post" type="button">Post summary</button>' + (s.source === 'oauth' ? '<button class="btn ghost" id="settings-slack-disconnect" type="button">Disconnect</button>' : '') + '</div><div class="small muted" id="settings-slack-msg" role="status"></div>';
+      '<div class="btnrow"><button class="btn" id="settings-slack-post" type="button">Post summary</button>' + (s.source === 'oauth' ? '<details class="action-menu"><summary>More actions <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-more"/></svg></summary><div class="menu-panel"><button class="danger-action" id="settings-slack-disconnect" type="button">Disconnect Slack</button></div></details>' : '') + '</div><div class="small muted" id="settings-slack-msg" role="status"></div>';
   } else if (s.can_connect) {
     el.innerHTML = settingRow('Status', 'Not connected') + '<p class="small muted">You will approve in Slack and choose the channel there. No webhook URL is typed into HandoffProof.</p><div class="btnrow"><button class="btn" id="settings-slack-connect" type="button">Add to Slack</button></div>';
   } else {
     el.innerHTML = settingRow('Status', 'Not connected') + '<p class="small muted">' + esc(s.setup_reason || 'Slack is not configured on the server.') + '</p>' +
-      '<div class="codebox">Redirect URL: ' + esc(s.redirect_url || (location.origin + '/api/integrations/slack/callback')) + '<br>Server env: HANDOFF_SLACK_CLIENT_ID · HANDOFF_SLACK_CLIENT_SECRET · HANDOFF_PUBLIC_URL</div>' +
+      '<details class="setup-help"><summary>Server setup details</summary><div class="codebox">Redirect URL: ' + esc(s.redirect_url || (location.origin + '/api/integrations/slack/callback')) + '<br>Server env: HANDOFF_SLACK_CLIENT_ID · HANDOFF_SLACK_CLIENT_SECRET · HANDOFF_PUBLIC_URL</div></details>' +
       (s.operator ? '' : '<p class="small muted">Ask a console operator to finish the server setup and connect Slack.</p>');
   }
 }
@@ -1067,19 +1088,23 @@ function renderGitHubSettings() {
   const el = $('github-settings-body');
   if (!el) return;
   const g = githubState || {};
+  $('summary-github-status').textContent = g.connected ? 'Connected' : 'Not connected';
+  $('summary-github-status').className = 'tag ' + (g.connected ? 'pass' : '');
+  $('summary-github-action').innerHTML = (g.connected ? 'Manage connection' : 'Connect GitHub') + ' <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg>';
+  $('summary-github-caption').textContent = g.connected ? (g.repository || 'Connection active') : 'Set up this connection to get started.';
   if (g.connected) {
     const repoOptions = [...new Set([g.repository, ...githubRepos.map(r => r.full_name)].filter(Boolean))];
     el.innerHTML = settingRow('Status', 'Connected') + settingRow('Account', g.name ? g.name + ' (@' + g.login + ')' : '@' + g.login) + settingRow('Repository', g.repository) + settingRow('Branch', g.branch) +
       '<div class="field"><label for="github-repo">Repository for remediation work</label><select id="github-repo">' + (repoOptions.length ? repoOptions.map(r => '<option' + (r === g.repository ? ' selected' : '') + '>' + esc(r) + '</option>').join('') : '<option value="">Load repositories to choose</option>') + '</select><span class="hint">Only repositories this GitHub connection can access are accepted.</span></div>' +
       '<div class="field"><label for="github-branch">Default branch</label><input id="github-branch" type="text" value="' + esc(g.branch || '') + '" placeholder="main"></div>' +
-      '<div class="btnrow"><button class="btn" id="settings-github-repos" type="button">Load repositories</button><button class="btn" id="settings-github-save" type="button">Save repository</button>' +
-      (g.repository_url ? '<a class="btn ghost" href="' + esc(g.repository_url) + '" target="_blank" rel="noopener">Open repository</a><a class="btn ghost" href="' + esc(g.repository_url) + '/actions" target="_blank" rel="noopener">Actions</a>' : '') +
-      '<button class="btn ghost" id="settings-github-disconnect" type="button">Disconnect</button></div><div class="small muted" id="settings-github-msg" role="status"></div>';
+      '<div class="btnrow"><button class="btn" id="settings-github-save" type="button">Save repository</button><button class="btn ghost" id="settings-github-repos" type="button">Load repositories</button><details class="action-menu"><summary>More actions <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-more"/></svg></summary><div class="menu-panel">' +
+      (g.repository_url ? '<a href="' + esc(g.repository_url) + '" target="_blank" rel="noopener">Open repository <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></a><a href="' + esc(g.repository_url) + '/actions" target="_blank" rel="noopener">GitHub Actions <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></a>' : '') +
+      '<button class="danger-action" id="settings-github-disconnect" type="button">Disconnect GitHub</button></div></details></div><div class="small muted" id="settings-github-msg" role="status"></div>';
   } else if (g.can_connect) {
     el.innerHTML = settingRow('Status', 'Not connected') + '<p class="small muted">Connect GitHub, then choose the repository used for remediation work. The token stays on the server.</p><div class="btnrow"><button class="btn" id="settings-github-connect" type="button">Connect GitHub</button></div>';
   } else {
     el.innerHTML = settingRow('Status', 'Not connected') + '<p class="small muted">' + esc(g.setup_reason || 'GitHub is not configured on the server.') + '</p>' +
-      '<div class="codebox">Authorization callback: ' + esc(g.redirect_url || (location.origin + '/api/integrations/github/callback')) + '<br>Server env: HANDOFF_GITHUB_CLIENT_ID · HANDOFF_GITHUB_CLIENT_SECRET · HANDOFF_PUBLIC_URL</div>' +
+      '<details class="setup-help"><summary>Server setup details</summary><div class="codebox">Authorization callback: ' + esc(g.redirect_url || (location.origin + '/api/integrations/github/callback')) + '<br>Server env: HANDOFF_GITHUB_CLIENT_ID · HANDOFF_GITHUB_CLIENT_SECRET · HANDOFF_PUBLIC_URL</div></details>' +
       (g.operator ? '' : '<p class="small muted">Ask a console operator to finish the server setup and connect GitHub.</p>');
   }
 }
@@ -1103,7 +1128,7 @@ document.addEventListener('click', async (e) => {
     try { const r = await fetch('/api/integrations/slack', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hp-request': '1' }, body: '{}' }); const j = await r.json(); if (m) m.textContent = r.ok ? 'Posted to Slack.' : 'Slack: ' + (j.error || 'failed'); } catch { if (m) m.textContent = 'Slack post failed.'; }
   }
   if (id === 'settings-slack-disconnect') {
-    try { const r = await fetch('/api/integrations/slack', { method: 'DELETE', headers: { 'x-hp-request': '1' } }); if (!r.ok) throw new Error('failed'); await loadSlackState(); } catch { shareMsg(''); }
+    try { const r = await fetch('/api/integrations/slack', { method: 'DELETE', headers: { 'x-hp-request': '1' } }); if (!r.ok) throw new Error('failed'); await loadSlackState(); } catch { const msg = $('settings-slack-msg'); if (msg) msg.textContent = 'Could not disconnect Slack. Please try again.'; }
   }
   if (id === 'settings-github-disconnect') {
     const m = $('settings-github-msg');
@@ -1126,8 +1151,8 @@ $('setting-page-size').addEventListener('change', () => { evidencePageSize = Num
 $('setting-open-report').addEventListener('click', () => { gotoPage('evidence'); setTimeout(openShare, 60); });
 const githubResult = new URLSearchParams(location.search).get('github');
 if (githubResult === 'connected' || githubResult === 'error') {
-  showPage('settings');
-  history.replaceState(null, '', '#settings');
+  showPage('settings-github');
+  history.replaceState(null, '', '#settings-github');
 }
 
 let diagState = { findings: [] };
@@ -1215,25 +1240,35 @@ function parseEnvText(text) {
   }
   return out;
 }
-async function loadApplications() {
-  const el = $('applications-list');
-  if (!el) return;
-  try {
-    const j = await getJSON('/api/applications');
-    const apps = j.applications || [];
-    el.innerHTML = apps.map(a =>
-      '<article class="insight-finding"><div class="insight-finding-head"><h3>' + esc(a.name || a.id) + '</h3><span class="muted small">' + esc(a.id) + '</span></div>' +
+function renderApplicationDetail() {
+  const a = applicationsState.find(a => a.id === selectedApplication);
+  $('application-detail-title').textContent = a ? (a.name || a.id) : 'Application';
+  if (!a) { $('application-detail-body').innerHTML = '<p class="empty">Application unavailable. <button class="btn ghost" data-goto="applications">Back to applications</button></p>'; return; }
+  $('application-detail-body').innerHTML =       '<article class="insight-finding"><div class="insight-finding-head"><h3>' + esc(a.name || a.id) + '</h3><span class="muted small">' + esc(a.id) + '</span></div>' +
       settingRow('Source', a.source_kind === 'github' ? (a.repository + '@' + (a.branch || 'main')) : 'Local folder') +
       settingRow('Workflows', (a.profile.workflows || []).map(w => w.name).join(', ')) +
       settingRow('Environment', (a.env_names || []).length + ' encrypted values') +
       settingRow('Last run', a.last_run ? (a.last_kind + ' · ' + a.last_run) : 'Not run yet') +
-      '<div class="field"><label>Run kind</label><select id="run-kind-' + esc(a.id) + '"><option value="fresh_deployment_baseline">Baseline</option><option value="withdrawn_test_token">Withdraw credential</option><option value="missing_configuration">Missing configuration</option><option value="incomplete_backup">Incomplete backup</option></select></div>' +
-      '<div class="field"><label>Fault target</label><input id="run-target-' + esc(a.id) + '" type="text" placeholder="credential name or env var"><span class="hint">For credential runs use a profile credential name; for missing configuration use an env var name.</span></div>' +
+      '<div class="field"><label for="run-kind-' + esc(a.id) + '">Run kind</label><select id="run-kind-' + esc(a.id) + '"><option value="fresh_deployment_baseline">Baseline</option><option value="withdrawn_test_token">Withdraw credential</option><option value="missing_configuration">Missing configuration</option><option value="incomplete_backup">Incomplete backup</option></select></div>' +
+      '<div class="field"><label for="run-target-' + esc(a.id) + '">Fault target</label><input id="run-target-' + esc(a.id) + '" type="text" placeholder="credential name or env var"><span class="hint">For credential runs use a profile credential name; for missing configuration use an env var name.</span></div>' +
       '<div class="btnrow"><button class="btn" type="button" data-app-action="run" data-app-id="' + esc(a.id) + '">Run rehearsal</button><button class="btn ghost" type="button" data-app-action="validate" data-app-id="' + esc(a.id) + '">Validate</button><button class="btn ghost" type="button" data-app-action="scan" data-app-id="' + esc(a.id) + '">Scan</button><button class="btn ghost" type="button" data-app-action="delete" data-app-id="' + esc(a.id) + '">Delete</button></div>' +
-      '<div class="small muted" id="app-msg-' + esc(a.id) + '" role="status"></div></article>').join('') ||
-      '<p class="empty">No applications yet. Import the sample profile with your own Compose application to start.</p>';
-  } catch (e) { el.innerHTML = '<p class="empty">Could not load applications: ' + esc(e.message) + '</p>'; }
+      '<div class="small muted" id="app-msg-' + esc(a.id) + '" role="status"></div></article>';
 }
+function renderApplicationList() {
+  const q = ($('application-search').value || '').toLowerCase();
+  const apps = applicationsState.filter(a => [a.name, a.id, a.repository].join(' ').toLowerCase().includes(q));
+  $('applications-list').innerHTML = apps.map(a => '<article class="tile application-card"><div><p class="eyebrow">' + esc(a.source_kind === 'github' ? 'GitHub repository' : 'Local application') + '</p><h2>' + esc(a.name || a.id) + '</h2><p class="small muted">' + esc(a.repository || 'Local folder') + ' · ' + esc((a.profile.workflows || []).length) + ' workflows</p></div><div><span class="small muted">' + esc(a.last_run ? 'Last rehearsal: ' + a.last_kind : 'Ready for a baseline') + '</span><button class="btn ghost" data-goto="application/' + encodeURIComponent(a.id) + '">Open application <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></button></div></article>').join('') || '<div class="tile empty"><h2>' + (q ? 'No matching applications' : 'Your first rehearsal starts here') + '</h2><p>' + (q ? 'Try a different name or repository.' : 'Add an application to review its workflows and prepare a baseline.') + '</p><button class="btn" data-goto="application-new">Add application</button></div>';
+}
+$('application-search').addEventListener('input', renderApplicationList);
+async function loadApplications() {
+  try {
+    const j = await getJSON('/api/applications');
+    applicationsState = j.applications || [];
+    renderApplicationList();
+    if ($('page-application-detail').classList.contains('active')) renderApplicationDetail();
+  } catch (e) { $('applications-list').innerHTML = '<p class="empty">Could not load applications. <button class="btn ghost" id="applications-retry">Try again</button></p>'; }
+}
+document.addEventListener('click', e => { if (e.target.id === 'applications-retry') loadApplications(); });
 if ($('app-create')) $('app-create').addEventListener('click', async () => {
   const msg = $('app-create-msg');
   try {
@@ -1244,7 +1279,9 @@ if ($('app-create')) $('app-create').addEventListener('click', async () => {
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'import failed');
     msg.textContent = 'Application imported. Validate it, then run the baseline.';
+    $('app-env').value = '';
     await loadApplications();
+    gotoPage('applications');
   } catch (e) { msg.textContent = 'Could not import application: ' + e.message; }
 });
 document.addEventListener('click', async (e) => {
@@ -1258,7 +1295,7 @@ document.addEventListener('click', async (e) => {
       if (!confirm('Delete this imported application and its server-side source copy?')) return;
       const r = await fetch('/api/applications/' + encodeURIComponent(id), { method: 'DELETE', headers: { 'x-hp-request': '1' } });
       const j = await r.json(); if (!r.ok) throw new Error(j.error || 'delete failed');
-      await loadApplications(); return;
+      await loadApplications(); gotoPage('applications'); return;
     }
     if (b.dataset.appAction === 'validate') {
       setMsg('Validating…');
@@ -1282,7 +1319,7 @@ document.addEventListener('click', async (e) => {
       if (!r.ok && !j.records) throw new Error(j.error || 'run failed');
       const passed = (j.records || []).filter(x => x.passed).length;
       setMsg('Run ' + (j.run_id || '') + ' finished: ' + passed + '/' + ((j.records || []).length) + ' assertions passed. Results are in Evidence.' + (j.warning ? ' Warning: ' + j.warning : ''));
-      await Promise.all([loadApplications(), loadEvidence(), loadSummary()]);
+      await Promise.all([loadEvidence(), loadSummary()]);
     }
   } catch (err) { setMsg('Action failed: ' + err.message); b.disabled = false; }
 });

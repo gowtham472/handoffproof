@@ -112,7 +112,7 @@ above; no other model runs inside the product.
 
 **Team** Solo — Gowtham ([gowtham472](https://github.com/gowtham472)).
 
-**Demo video:** TBD
+**Demo video:** [demo/handoffproof-demo.mp4](demo/handoffproof-demo.mp4) (2:30 animated walkthrough with recreated UI based on recorded demo evidence; script in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md), built with Remotion from `film/`). A revision using actual application footage is planned.
 
 ## The rehearsal
 

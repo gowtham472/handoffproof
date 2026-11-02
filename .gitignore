@@ -12,6 +12,9 @@ evidence/*
 coverage/
 playwright-report/
 test-results/
+# local preview servers, scratch scripts, and review captures
+/tmp/
+generated_images/*.lock
 # editor/os
 .DS_Store
 Thumbs.db
