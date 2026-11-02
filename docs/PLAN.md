@@ -1,5 +1,38 @@
 # HandoffProof - 3-day build plan (Step 1)
 
+## Video refresh (2026-11-02)
+
+Status: PROPOSED - waiting for approval before producing the next cut.
+
+Current cut: 150.016 seconds, H.264 1920 x 1080 at 30 fps with AAC audio,
+measured using the bundled ffprobe. It uses recreated UI. The film source now
+passes `npm run typecheck` after adding its missing React type dependencies.
+
+Proposed next cut: about 2:45, using actual application captures and recorded
+controller evidence. Keep the owl and music as the default proposal; a style
+choice has been presented to the user. Use the current app palette, square
+buttons, legible captions, and the new high-resolution product captures.
+
+| Time | Content |
+| --- | --- |
+| 0:00-0:12 | Current landing page and the developer-handover problem |
+| 0:12-0:32 | Baseline: registration, booking, confirmation email |
+| 0:32-0:58 | Withdrawn-token drill; booking continues while the email assertion fails |
+| 0:58-1:24 | Actual Evidence and Insights screens: evidence ID, log, source citation, and the Meta diagnosis |
+| 1:24-1:42 | Missing configuration and incomplete handover documentation |
+| 1:42-2:12 | Repair proposal and controller rerun, with before/after evidence IDs and unchanged acceptance hashes |
+| 2:12-2:32 | Applications and the focused GitHub/Slack settings pages |
+| 2:32-2:45 | Measured baseline comparison, limitations, and repository link |
+
+Before rendering: match each on-screen outcome to its controller evidence ID;
+label recorded/replayed material; show a real Meta response rather than a staged
+typing effect; do not present an integration as connected or a message as posted
+unless the capture supports it. Correct the script's four-fault wording to match
+the five-fault evaluation. Keep token usage out of the main proof sequence.
+
+Deliverables after approval: revised script/captions, real UI captures, a checked
+1080p MP4 under three minutes, poster/thumbnail, and a brief validation record.
+
 ## UI layout and landing page refresh (2026-11-02)
 
 Status: UI implemented and reviewed on 2026-11-02. User authorized commit/push
