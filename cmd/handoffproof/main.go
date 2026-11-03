@@ -67,7 +67,8 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  report --evidence FILE [--diagnosis FILE] --out FILE")
 	fmt.Fprintln(os.Stderr, "  serve [--addr :8787]             Control Room frontend")
 	fmt.Fprintln(os.Stderr, "  verify --diagnosis FILE          adversarial citation + evidence check")
-	fmt.Fprintln(os.Stderr, "  eval                             regenerate docs/RESULTS.md")
+	fmt.Fprintln(os.Stderr, "  eval [--models a,b] [--reps N] [--render-only]  regenerate docs/RESULTS.md")
+	fmt.Fprintln(os.Stderr, "  interview --audio FILE           exit-interview verifier (or --transcript fixture.json)")
 	fmt.Fprintln(os.Stderr, "  pr --diff FILE [--execute]       guardrailed remediation PR (dry-run default)")
 	fmt.Fprintln(os.Stderr, "  score                            Handover Score + trend append")
 }

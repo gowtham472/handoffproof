@@ -461,7 +461,9 @@ func writeNotRun(evDir, profile, reason, commit string) {
 // runModelBenchmark executes every profile/app/rep cell and returns the
 // comparison section for docs/RESULTS.md. It never fails the eval command:
 // unstartable profiles and failed cells become labelled rows.
-func runModelBenchmark(ctx context.Context, root, evDir string, names []string, reps int) string {
+// With renderOnly the live cells are not executed; the table is rendered
+// from the cell.json files already under evidence/eval.
+func runModelBenchmark(ctx context.Context, root, evDir string, names []string, reps int, renderOnly bool) string {
 	byName := map[string]modelProfile{}
 	for _, p := range modelProfiles() {
 		byName[p.Name] = p
@@ -480,6 +482,9 @@ func runModelBenchmark(ctx context.Context, root, evDir string, names []string, 
 		return fmt.Sprintf("\n## Model comparison\n\nCannot load ground truth: %v %v.\n", derr, herr)
 	}
 	for _, p := range wanted {
+		if renderOnly {
+			continue
+		}
 		model, base, key, err := profileRoute(p)
 		if err != nil {
 			writeNotRun(evDir, p.Name, err.Error(), gitShort(root))

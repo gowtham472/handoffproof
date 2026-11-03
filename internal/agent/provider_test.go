@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 // chatRouteFor builds a Router sending every phase to one chat endpoint.
@@ -24,6 +25,8 @@ func TestChatAdapterRequestResponseMapping(t *testing.T) {
 	clearRoutingEnv(t)
 	var bodies []map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Keep per-turn latency measurable regardless of timer granularity.
+		time.Sleep(5 * time.Millisecond)
 		if r.URL.Path != "/chat/completions" {
 			t.Errorf("path = %s, want /chat/completions", r.URL.Path)
 		}

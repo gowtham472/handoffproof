@@ -40,6 +40,9 @@ func TestRepairScopedRunnerIsReadOnly(t *testing.T) {
 	if repairPhaseTimeout != 10*time.Minute {
 		t.Errorf("repair wall-clock cap = %v, want 10m", repairPhaseTimeout)
 	}
+	if scoped.Cfg.HTTP == nil || scoped.Cfg.HTTP.Timeout != 5*time.Minute {
+		t.Errorf("scoped repair transport timeout = %+v, want 5m client", scoped.Cfg.HTTP)
+	}
 }
 
 func TestCellRepairProtectedPathRefused(t *testing.T) {
@@ -140,7 +143,7 @@ func TestProfileRouteValidation(t *testing.T) {
 }
 
 func TestUnknownProfileSection(t *testing.T) {
-	sec := runModelBenchmark(context.Background(), t.TempDir(), t.TempDir(), []string{"nope"}, 3)
+	sec := runModelBenchmark(context.Background(), t.TempDir(), t.TempDir(), []string{"nope"}, 3, false)
 	if !strings.Contains(sec, "Unknown profile") {
 		t.Errorf("section = %q", sec)
 	}
@@ -164,7 +167,7 @@ func TestBenchmarkNotRunRow(t *testing.T) {
 	root := t.TempDir()
 	writeTempTruth(t, root)
 	evDir := t.TempDir()
-	sec := runModelBenchmark(context.Background(), root, evDir, []string{"spark-open"}, 3)
+	sec := runModelBenchmark(context.Background(), root, evDir, []string{"spark-open"}, 3, false)
 	if !strings.Contains(sec, "not run") || !strings.Contains(sec, "TOGETHER_API_KEY is not set") {
 		t.Errorf("section = %q, want labelled not-run row", sec)
 	}
@@ -341,6 +344,46 @@ func TestRenderModelTableFromFilesOnly(t *testing.T) {
 	}, 3)
 	if !strings.Contains(sec2, "not run") || !strings.Contains(sec2, "META_API_KEY is not set") {
 		t.Errorf("table missing not-run row:\n%s", sec2)
+	}
+}
+
+func TestRunModelBenchmarkRenderOnly(t *testing.T) {
+	root := t.TempDir()
+	writeTempTruth(t, root)
+	evDir := filepath.Join(root, "evidence")
+	dir := cellPath(evDir, "spark13", "demo-app", 1)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(modelCell{OK: true, Profile: "spark13", App: "demo-app", Rep: 1,
+		Model: "muse-spark-1.3", Caught: []string{"T-1"}, TotalTokens: 10, LatencyMs: 1000})
+	if err := os.WriteFile(filepath.Join(dir, "cell.json"), append(raw, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeNotRun(evDir, "wonder", "META_API_KEY is not set", "abc123")
+	before := 0
+	filepath.Walk(evDir, func(_ string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() {
+			before++
+		}
+		return nil
+	})
+	sec := runModelBenchmark(context.Background(), root, evDir,
+		[]string{"spark13", "wonder"}, 3, true)
+	for _, want := range []string{"| spark13 | demo-app | 1/3 |", "not run", "META_API_KEY is not set"} {
+		if !strings.Contains(sec, want) {
+			t.Errorf("render-only table missing %q:\n%s", want, sec)
+		}
+	}
+	after := 0
+	filepath.Walk(evDir, func(_ string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() {
+			after++
+		}
+		return nil
+	})
+	if after != before {
+		t.Errorf("render-only wrote %d files, want 0", after-before)
 	}
 }
 

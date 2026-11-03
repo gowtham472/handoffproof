@@ -30,6 +30,7 @@ func cmdEval(ctx context.Context, root string, args []string) error {
 	evDir := filepath.Join(root, "evidence")
 	var models []string
 	reps := 3
+	renderOnly := false
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--evidence-dir":
@@ -37,6 +38,8 @@ func cmdEval(ctx context.Context, root string, args []string) error {
 				evDir = args[i+1]
 				i++
 			}
+		case "--render-only":
+			renderOnly = true
 		case "--models":
 			if i+1 < len(args) {
 				for _, m := range strings.Split(args[i+1], ",") {
@@ -146,7 +149,7 @@ func cmdEval(ctx context.Context, root string, args []string) error {
 	b.WriteString("Outsider fault slot: add `eval/outsider_fault.json` (kind + target) and rerun `handoffproof eval`; until then the outsider arm is a **target**, not a result.\n")
 	b.WriteString(modelQualitySection(evDir, demoTruth))
 	if len(models) > 0 {
-		b.WriteString(runModelBenchmark(ctx, root, evDir, models, reps))
+		b.WriteString(runModelBenchmark(ctx, root, evDir, models, reps, renderOnly))
 	}
 	out := filepath.Join(root, "docs", "RESULTS.md")
 	if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
