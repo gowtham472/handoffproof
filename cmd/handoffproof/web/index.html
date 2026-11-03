@@ -241,6 +241,8 @@
   .field label { font-size: .86rem; font-weight: 600; }
   .field select, .field input { width: 100%; background: var(--layer); color: var(--text); border: 1px solid var(--border-strong); padding: 10px 12px; font: inherit; border-radius: 0; }
   .field .hint { color: var(--text-2); font-size: .82rem; }
+  .field label.toggle-option { display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; cursor: pointer; }
+  .field .toggle-option input[type="checkbox"] { flex: 0 0 16px; width: 16px; height: 16px; margin: 3px 0 0; padding: 0; accent-color: var(--blue); }
   .codebox { background: var(--bg); padding: 12px 14px; font-family: "IBM Plex Mono", monospace; font-size: .8rem; overflow-wrap: anywhere; margin: 10px 0; }
   .btnrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
   /* Insights workspace */
@@ -674,6 +676,11 @@
 const $ = (id) => document.getElementById(id);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 async function getJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); }
+async function integrationJSON(url) {
+  const r = await fetch(url); const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'Could not complete the integration request.');
+  return j;
+}
 function badge(ok, yes, no) { return '<span class="tag ' + (ok ? 'pass' : 'fail') + '">' + (ok ? yes : no) + '</span>'; }
 let applicationsState = [];
 let selectedApplication = '';
@@ -716,6 +723,15 @@ let summaryState = null;
 let scoreState = null;
 let githubState = { connected: false, can_connect: false, setup_reason: '' };
 let githubRepos = [];
+let githubRepoPage = 0, githubHasMore = false;
+let githubInstallations = [], githubInstallationPage = 0, githubInstallationsMore = false, githubInstallURL = '';
+let slackNotifications = { settings: { enabled: false, failures_only: false }, delivery: {} };
+document.addEventListener('change', e => {
+  if (e.target && e.target.id === 'github-repo') {
+    const repo = githubRepos.find(r => r.full_name === e.target.value);
+    if (repo && $('github-branch')) $('github-branch').value = repo.default_branch || '';
+  }
+});
 async function loadSummary() {
   const s = await getJSON('/api/summary');
   summaryState = s;
@@ -941,6 +957,10 @@ function renderSlackState() {
 }
 async function loadSlackState() {
   try { slackState = await getJSON('/api/integrations/slack'); } catch { slackState = { connected: false, can_connect: false, setup_reason: 'Could not read Slack connection status.' }; }
+  if (slackState.operator) {
+    try { slackNotifications = await integrationJSON('/api/integrations/slack/notifications'); }
+    catch { slackNotifications = { settings: {}, delivery: {}, error: 'Could not read notification settings. Automatic posting is disabled until settings can be read.' }; }
+  }
   renderSlackState();
   renderSlackSettings();
   renderStartSteps();
@@ -1083,6 +1103,15 @@ function renderSlackSettings() {
       '<details class="setup-help"><summary>Server setup details</summary><div class="codebox">Redirect URL: ' + esc(s.redirect_url || (location.origin + '/api/integrations/slack/callback')) + '<br>Server env: HANDOFF_SLACK_CLIENT_ID · HANDOFF_SLACK_CLIENT_SECRET · HANDOFF_PUBLIC_URL</div></details>' +
       (s.operator ? '' : '<p class="small muted">Ask a console operator to finish the server setup and connect Slack.</p>');
   }
+  if (s.connected && s.operator) {
+    const prefs = slackNotifications.settings || {}, delivery = slackNotifications.delivery || {};
+    el.innerHTML += '<h3>Rehearsal notifications</h3><p class="small muted">Send a summary after each console rehearsal. Posting is off until you enable it.</p>' +
+      '<div class="field"><label class="toggle-option"><input type="checkbox" id="slack-notify-enabled"' + (prefs.enabled ? ' checked' : '') + '> Notify when a rehearsal completes</label></div>' +
+      '<div class="field"><label class="toggle-option"><input type="checkbox" id="slack-notify-failures"' + (prefs.failures_only ? ' checked' : '') + '> Only when an assertion fails or execution ends with an error</label></div>' +
+      '<button class="btn ghost" id="settings-slack-notifications">Save notifications</button>' +
+      settingRow('Last automatic delivery', delivery.status ? delivery.status + ' · ' + new Date(delivery.at).toLocaleString() : 'No delivery since server start') +
+      (delivery.error || slackNotifications.error ? '<p class="small" role="status">' + esc(delivery.error || slackNotifications.error) + '</p>' : '');
+  }
 }
 function renderGitHubSettings() {
   const el = $('github-settings-body');
@@ -1095,9 +1124,10 @@ function renderGitHubSettings() {
   if (g.connected) {
     const repoOptions = [...new Set([g.repository, ...githubRepos.map(r => r.full_name)].filter(Boolean))];
     el.innerHTML = settingRow('Status', 'Connected') + settingRow('Account', g.name ? g.name + ' (@' + g.login + ')' : '@' + g.login) + settingRow('Repository', g.repository) + settingRow('Branch', g.branch) +
+      settingRow('Access', g.authentication === 'github_app' ? 'GitHub App · repository read access' : 'OAuth · ' + (g.scope || 'repo')) +
       '<div class="field"><label for="github-repo">Repository for remediation work</label><select id="github-repo">' + (repoOptions.length ? repoOptions.map(r => '<option' + (r === g.repository ? ' selected' : '') + '>' + esc(r) + '</option>').join('') : '<option value="">Load repositories to choose</option>') + '</select><span class="hint">Only repositories this GitHub connection can access are accepted.</span></div>' +
       '<div class="field"><label for="github-branch">Default branch</label><input id="github-branch" type="text" value="' + esc(g.branch || '') + '" placeholder="main"></div>' +
-      '<div class="btnrow"><button class="btn" id="settings-github-save" type="button">Save repository</button><button class="btn ghost" id="settings-github-repos" type="button">Load repositories</button><details class="action-menu"><summary>More actions <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-more"/></svg></summary><div class="menu-panel">' +
+      '<div class="btnrow"><button class="btn" id="settings-github-save" type="button">Save repository</button><button class="btn ghost" id="settings-github-repos" type="button">Refresh repositories</button>' + (githubHasMore ? '<button class="btn ghost" id="settings-github-repos-more">Load more repositories</button>' : '') + '<details class="action-menu"><summary>More actions <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-more"/></svg></summary><div class="menu-panel">' +
       (g.repository_url ? '<a href="' + esc(g.repository_url) + '" target="_blank" rel="noopener">Open repository <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></a><a href="' + esc(g.repository_url) + '/actions" target="_blank" rel="noopener">GitHub Actions <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></a>' : '') +
       '<button class="danger-action" id="settings-github-disconnect" type="button">Disconnect GitHub</button></div></details></div><div class="small muted" id="settings-github-msg" role="status"></div>';
   } else if (g.can_connect) {
@@ -1106,6 +1136,14 @@ function renderGitHubSettings() {
     el.innerHTML = settingRow('Status', 'Not connected') + '<p class="small muted">' + esc(g.setup_reason || 'GitHub is not configured on the server.') + '</p>' +
       '<details class="setup-help"><summary>Server setup details</summary><div class="codebox">Authorization callback: ' + esc(g.redirect_url || (location.origin + '/api/integrations/github/callback')) + '<br>Server env: HANDOFF_GITHUB_CLIENT_ID · HANDOFF_GITHUB_CLIENT_SECRET · HANDOFF_PUBLIC_URL</div></details>' +
       (g.operator ? '' : '<p class="small muted">Ask a console operator to finish the server setup and connect GitHub.</p>');
+  }
+  if (g.operator && g.app_configured) {
+    el.innerHTML += '<h3>GitHub App</h3><p class="small muted">Install the app for selected repositories in GitHub, then load and choose its installation here. Connecting an installation replaces this server’s current GitHub connection.</p>' +
+      '<div class="btnrow"><button class="btn ghost" id="settings-github-installations">Load installations</button>' +
+      (githubInstallationsMore ? '<button class="btn ghost" id="settings-github-installations-more">Load more installations</button>' : '') +
+      (githubInstallURL ? '<a class="btn ghost" href="' + esc(githubInstallURL) + '" target="_blank" rel="noopener">Install on GitHub</a>' : '') + '</div>' +
+      (githubInstallations.length ? '<div class="field"><label for="github-installation">Installation</label><select id="github-installation">' + githubInstallations.map(i => '<option value="' + i.id + '"' + (i.suspended_at ? ' disabled' : '') + '>' + esc(i.account.login) + ' · ' + i.id + (i.suspended_at ? ' (suspended)' : '') + '</option>').join('') + '</select></div><button class="btn" id="settings-github-installation-connect">Connect installation</button>' : '') +
+      '<p class="small muted" id="github-installation-msg" role="status"></p>';
   }
 }
 function renderServerSettings() {
@@ -1121,6 +1159,33 @@ async function loadSettings() {
 }
 document.addEventListener('click', async (e) => {
   const id = e.target && e.target.id;
+  if (id === 'settings-slack-notifications') {
+    const m = $('settings-slack-msg');
+    try {
+      const r = await fetch('/api/integrations/slack/notifications', { method: 'PUT', headers: { 'content-type': 'application/json', 'x-hp-request': '1' }, body: JSON.stringify({ enabled: $('slack-notify-enabled').checked, failures_only: $('slack-notify-failures').checked }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Could not save');
+      await loadSlackState(); $('settings-slack-msg').textContent = 'Notification settings saved.';
+    } catch (err) { if (m) m.textContent = err.message; }
+  }
+  if (id === 'settings-github-installations' || id === 'settings-github-installations-more') {
+    const m = $('github-installation-msg');
+    try {
+      const page = id.endsWith('-more') ? githubInstallationPage + 1 : 1;
+      const j = await integrationJSON('/api/integrations/github/installations?page=' + page);
+      githubInstallations = page === 1 ? j.installations : [...githubInstallations, ...j.installations];
+      githubInstallationPage = page; githubInstallationsMore = j.has_more; githubInstallURL = j.install_url || '';
+      renderGitHubSettings(); $('github-installation-msg').textContent = githubInstallations.length ? 'Choose the installation to connect.' : 'No installations found. Install the app in GitHub, then load again.';
+    } catch (err) { if (m) m.textContent = err.message; }
+  }
+  if (id === 'settings-github-installation-connect') {
+    const m = $('github-installation-msg');
+    try {
+      const r = await fetch('/api/integrations/github/installations', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hp-request': '1' }, body: JSON.stringify({ installation_id: Number($('github-installation').value) }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Could not connect');
+      githubRepos = []; githubRepoPage = 0; githubHasMore = false;
+      await loadGitHubState(); $('github-installation-msg').textContent = 'Installation connected. Load repositories to choose a repository.';
+    } catch (err) { if (m) m.textContent = err.message; }
+  }
   if (id === 'settings-slack-connect') location.href = '/api/integrations/slack/connect?from=settings';
   if (id === 'settings-github-connect') location.href = '/api/integrations/github/connect';
   if (id === 'settings-slack-post') {
@@ -1134,9 +1199,18 @@ document.addEventListener('click', async (e) => {
     const m = $('settings-github-msg');
     try { const r = await fetch('/api/integrations/github', { method: 'DELETE', headers: { 'x-hp-request': '1' } }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'failed'); githubRepos = []; await loadGitHubState(); } catch (err) { if (m) m.textContent = 'Could not disconnect GitHub: ' + err.message; }
   }
-  if (id === 'settings-github-repos') {
+  if (id === 'settings-github-repos' || id === 'settings-github-repos-more') {
     const m = $('settings-github-msg'); if (m) m.textContent = 'Loading repositories…';
-    try { const j = await getJSON('/api/integrations/github/repositories'); githubRepos = j.repositories || []; renderGitHubSettings(); } catch (err) { if (m) m.textContent = 'Could not load repositories.'; }
+    try {
+      const selected = $('github-repo').value, branch = $('github-branch').value;
+      const page = id.endsWith('-more') ? githubRepoPage + 1 : 1;
+      const j = await integrationJSON('/api/integrations/github/repositories?page=' + page);
+      githubRepos = page === 1 ? (j.repositories || []) : [...githubRepos, ...(j.repositories || [])];
+      githubRepoPage = page; githubHasMore = j.has_more;
+      renderGitHubSettings();
+      if ([...$('github-repo').options].some(o => o.value === selected)) { $('github-repo').value = selected; $('github-branch').value = branch; }
+      $('settings-github-msg').textContent = githubRepos.length + ' repositories loaded.';
+    } catch (err) { if (m) m.textContent = err.message || 'Could not load repositories.'; }
   }
   if (id === 'settings-github-save') {
     const m = $('settings-github-msg'); if (m) m.textContent = 'Saving…';
