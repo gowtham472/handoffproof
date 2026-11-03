@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,14 +17,42 @@ import (
 	"github.com/gowtham472/handoffproof/internal/scan"
 )
 
+// drillRec is one controller record reduced to the fields arm scoring needs.
+type drillRec struct {
+	Drill    string
+	Workflow string
+	Passed   bool
+}
+
 // cmdEval scores detection arms against ground truth and writes
 // docs/RESULTS.md (hp-eval-results-table). Measured numbers only.
-func cmdEval(root string, args []string) error {
+func cmdEval(ctx context.Context, root string, args []string) error {
 	evDir := filepath.Join(root, "evidence")
+	var models []string
+	reps := 3
 	for i := 0; i < len(args); i++ {
-		if args[i] == "--evidence-dir" && i+1 < len(args) {
-			evDir = args[i+1]
-			i++
+		switch args[i] {
+		case "--evidence-dir":
+			if i+1 < len(args) {
+				evDir = args[i+1]
+				i++
+			}
+		case "--models":
+			if i+1 < len(args) {
+				for _, m := range strings.Split(args[i+1], ",") {
+					if m = strings.TrimSpace(m); m != "" {
+						models = append(models, m)
+					}
+				}
+				i++
+			}
+		case "--reps":
+			if i+1 < len(args) {
+				if n, err := strconv.Atoi(args[i+1]); err == nil && n >= 1 {
+					reps = n
+				}
+				i++
+			}
 		}
 	}
 	demoScan, err := scan.Scan(filepath.Join(root, "demo-app"))
@@ -116,6 +145,9 @@ func cmdEval(root string, args []string) error {
 	b.WriteString("\nEvidence behind each row: `evidence/run-*.json`, `evidence/diagnosis-*.json`, `evidence/verification.json`.\n")
 	b.WriteString("Outsider fault slot: add `eval/outsider_fault.json` (kind + target) and rerun `handoffproof eval`; until then the outsider arm is a **target**, not a result.\n")
 	b.WriteString(modelQualitySection(evDir, demoTruth))
+	if len(models) > 0 {
+		b.WriteString(runModelBenchmark(ctx, root, evDir, models, reps))
+	}
 	out := filepath.Join(root, "docs", "RESULTS.md")
 	if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
 		return err
@@ -125,38 +157,22 @@ func cmdEval(root string, args []string) error {
 	return nil
 }
 
-func recordsFromDir(evDir string) []struct {
-	Drill    string
-	Workflow string
-	Passed   bool
-} {
+func recordsFromDir(evDir string) []drillRec {
 	matches, _ := filepath.Glob(filepath.Join(evDir, "run-*.json"))
-	var out []struct {
-		Drill    string
-		Workflow string
-		Passed   bool
-	}
+	var out []drillRec
 	for _, m := range matches {
 		recs, err := controller.ReadEvidence(m)
 		if err != nil {
 			continue
 		}
 		for _, r := range recs {
-			out = append(out, struct {
-				Drill    string
-				Workflow string
-				Passed   bool
-			}{r.Drill, r.Workflow, r.Passed})
+			out = append(out, drillRec{r.Drill, r.Workflow, r.Passed})
 		}
 	}
 	return out
 }
 
-func hasFail(recs []struct {
-	Drill    string
-	Workflow string
-	Passed   bool
-}, drill, workflow string) bool {
+func hasFail(recs []drillRec, drill, workflow string) bool {
 	for _, r := range recs {
 		if r.Drill == drill && r.Workflow == workflow && !r.Passed {
 			return true
@@ -244,11 +260,7 @@ func staticSignal(rep scan.Report, kind string) bool {
 
 // drillSignal reports whether controller drill evidence (no model) shows
 // the workflow this fault kind breaks actually failing.
-func drillSignal(recs []struct {
-	Drill    string
-	Workflow string
-	Passed   bool
-}, kind string) bool {
+func drillSignal(recs []drillRec, kind string) bool {
 	switch kind {
 	case "missing_configuration":
 		return hasFail(recs, "missing_configuration", "reminder_job")
@@ -400,7 +412,9 @@ type mapDependency struct {
 	} `json:"source_references"`
 }
 
-var phaseHeaderRe = regexp.MustCompile(`--- (\w+) \(tokens(?: in=(\d+) out=(\d+))? total=(\d+)\) ---`)
+// phaseHeaderRe matches both the legacy header ("tokens ...") and the F1
+// header carrying model/provider/latency fields.
+var phaseHeaderRe = regexp.MustCompile(`--- (\w+) \([^()]*tokens(?: in=(\d+) out=(\d+))? total=(\d+)[^()]*\) ---`)
 
 // extractDependencyMap finds the dependency_map phase JSON in a live log.
 func extractDependencyMap(text string) ([]mapDependency, bool) {

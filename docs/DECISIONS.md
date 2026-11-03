@@ -1,5 +1,45 @@
 # Decisions
 
+## F3: Wonder repair agent (2026-11-04)
+
+Repair runs through the same single-agent loop with three hard bindings: (1) a
+repair-scoped runner unwires `submit_repair`, so the model can only use
+read-only file tools (secret paths stay denied) — the controller applies the
+proposal diff itself and reruns the identical suite; (2) a 10-minute wall-clock
+cap (`repairPhaseTimeout`) on the repair phase, alongside the existing step
+(tool budget, turn cap), token (spec max) and schema-retry caps; (3) no
+sub-agent fan-out exists anywhere in the loop (one Runner, local tools only).
+Routing repair to Wonder is one config line, `HANDOFF_MODEL_REPAIR=muse-wonder-1.0`
+in `.env` (F1 knob; defaults still Spark). Protected-path refusal needs no new
+code: `controller.ApplyRepairToCopy` rejects protected diffs before any sandbox
+work, covered by a cmd-level test with a malicious `acceptance/` diff that
+asserts applied=false/green=n/a with no Docker touched (existing
+`TestDiffTouchesProtected` covers the controller unit). Measured so far: a live
+spark13 demo-app cell caught 5/5 faults with 0 false alarms at ~174k tokens /
+$0.32, and the verification phase hit the 40-call tool budget without returning
+JSON — citations read 0/0 for that cell, an honest harness limit, not a model
+verdict (only the controller issues verdicts; no new verdict path added —
+`grep Passed` shows no assignments outside `internal/controller`/`internal/evidence`).
+
+## F2: Multi-model benchmark arm (2026-11-04)
+
+`handoffproof eval --models <names> [--reps N]` (default 3) runs each profile on
+demo-app and heldout-app into `evidence/eval/<profile>/<app>/rep<n>/` (cell.json,
+six phase JSONs, phases.log). Cells reuse the shared recorded controller drill
+evidence (model-independent; no fresh Docker drills per cell) and run the six
+agent phases live behind the profile router; repair apply/rerun execute for real
+when the proposal carries a diff. The comparison table is rendered from cell.json
+files only (plus per-profile NOT_RUN files); unstartable profiles (missing key,
+unreachable local endpoint) yield labelled "not run" rows, never silent omissions.
+Per-cell caught/missed reuse the deterministic arm scoring because detection is
+controller-driven and identical across profiles; profiles differ on model metrics
+(citations, schema-fail turns, tokens, latency, cost, first-try apply, rerun-green).
+Cost uses official per-1M-token rates (Wonder $4/$20, Spark $1.25/$4.25 Standard);
+spark-open is provider-priced and glimmer local, both shown as n/a with a note.
+The phase-header regex now tolerates F1's `model=/provider=/latency=` fields so
+existing live logs keep parsing. Exact schema-fail/tool-turn counts come from new
+exported Runner counters rather than header estimates.
+
 ## F1: Per-phase model routing and protocol adapter (2026-11-04)
 
 Per-phase routes (`HANDOFF_MODEL/PROVIDER/BASE_URL/KEY_ENV_<INTAKE|DEPENDENCY|

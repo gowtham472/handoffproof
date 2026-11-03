@@ -1,6 +1,37 @@
 # HandoffProof - 3-day build plan (Step 1)
 
-## F1: Per-phase model routing (2026-11-04, implemented — manifest refresh pending)
+## F3: Wonder repair agent (2026-11-04, implemented — with F2 below)
+
+`HANDOFF_MODEL_REPAIR=muse-wonder-1.0` in `.env` routes repair_proposal to
+Wonder via the F1 knob (config, not code). Repair runs on a scoped runner
+(`submit_repair` unwired → read-only file tools) under a 10-minute wall-clock
+cap, with steps/tokens/retries already capped by the loop and no sub-agent
+fan-out. Files: `cmd/handoffproof/main.go` (scoped runner + timeout in
+`runRepairLoop`), `cmd/handoffproof/eval_models.go` (same for cells),
+`cmd/handoffproof/eval_models_test.go` (read-only + protected-refusal tests),
+`.env` (gitignored local routing; defaults unchanged). No protected-path edits;
+no new verdict path. Wonder-vs-Spark repair metrics come from the F2 table's
+wonder/spark13 rows (live benchmark running).
+
+## F2: Multi-model benchmark arm (2026-11-04, code complete — live benchmark running)
+
+`handoffproof eval --models spark13,wonder,spark-open,glimmer [--reps 3]` runs
+each profile on demo-app + heldout-app, 3 reps per cell, into
+`evidence/eval/<profile>/<app>/rep<n>/` (cell.json + phase JSONs + phases.log).
+Cells reuse recorded controller drill evidence (model-independent) and run the
+six agent phases live behind the profile router; repair apply/rerun execute for
+real when a diff is proposed. The comparison table is generated from cell.json
+files only; a profile that cannot start (missing key / unreachable local
+endpoint) yields a labelled "not run" row. Files: `cmd/handoffproof/eval_models.go`
+(new), `cmd/handoffproof/eval_models_test.go` (new), `cmd/handoffproof/eval.go`
+(flags + phase-header regex now tolerates F1's `model=/provider=/latency=` fields),
+`internal/agent/loop.go` (exact SchemaRetries/ToolTurns counters), regenerated
+`docs/RESULTS.md`. cmd/ is manifest-hashed: refresh + separate commit after.
+Assumption: per-cell caught/missed reuse the deterministic arm scoring (detection
+is controller-driven and identical across profiles); profiles differ on model
+metrics (citations, retries, tokens, latency, cost, apply/green rates).
+
+## F1: Per-phase model routing (2026-11-04, DONE — commits a1065f2 + 1d536f5)
 
 Implementation complete and green (see the F1 row in docs/DECISIONS.md).
 STOPPED before any manifest refresh/verify: awaiting explicit approval because

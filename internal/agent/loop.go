@@ -38,6 +38,11 @@ type Runner struct {
 	Exec   *Executor
 	Router *Router
 	budget budget
+	// SchemaRetries counts model turns that failed schema validation across
+	// the run; ToolTurns counts tool turns. Cells read them for exact
+	// per-run retry/turn metrics instead of estimating from token headers.
+	SchemaRetries int
+	ToolTurns     int
 }
 
 type budget struct {
@@ -136,6 +141,7 @@ func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult
 		usage.TotalTokens += turn.Usage.TotalTokens
 		usage.Calls++
 		if len(turn.Calls) > 0 {
+			r.ToolTurns++
 			if r.Exec == nil {
 				return nil, fmt.Errorf("model requested tools but no executor is configured")
 			}
@@ -174,6 +180,7 @@ func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult
 			}, nil
 		}
 		schemaRetries++
+		r.SchemaRetries++
 		if schemaRetries > maxSchemaRetries {
 			return nil, fmt.Errorf("phase %s: schema validation failed after retries: %s", phase, violations)
 		}
