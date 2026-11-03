@@ -61,7 +61,7 @@ func extractionServer(t *testing.T, bodies *[]map[string]any) *httptest.Server {
 	inner, _ := json.Marshal(claims)
 	envelope := `{"id":"e1","model":"m","output":[{"type":"message","content":[{"type":"output_text","text":` +
 		string(inner) +
-		`"}]}]},"usage":{"input_tokens":10,"output_tokens":5,"total_tokens":12}}`
+		`}]}],"usage":{"input_tokens":10,"output_tokens":5,"total_tokens":12}}`
 	var check map[string]any
 	if err := json.Unmarshal([]byte(envelope), &check); err != nil {
 		t.Fatalf("fixture envelope invalid: %v", err)
