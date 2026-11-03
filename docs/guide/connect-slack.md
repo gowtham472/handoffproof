@@ -3,8 +3,8 @@
 ## Purpose
 
 Post a server-built HandoffProof report summary to a Slack channel: evidence
-record counts, pass/fail totals, manifest-integrity state, and up to three
-failing assertion names. Webhook URLs, tokens, share links, and model text
+record counts, controller outcome totals, manifest-integrity state, and up to six
+controller evidence IDs. Webhook URLs, tokens, share links, assertion text, and model text
 are never posted.
 
 ## Who can do this
@@ -43,8 +43,28 @@ to `127.0.0.1:8787` and open the console through that HTTPS address.
 ## Post a summary
 
 Use **Post to Slack** in Settings, the Full report dialog, or the generated
-report. Posting is manual today; automatic drill notifications are a planned
-HOP Connect feature, not a current one.
+report. This posts the current report summary immediately.
+
+## Automatic rehearsal notifications
+
+Open **Settings -> Slack -> Rehearsal notifications**, enable **Notify when a
+rehearsal completes**, and save. This is off by default. Optionally select
+**Only when an assertion fails or execution ends with an error**.
+
+Notifications cover demo and imported-application rehearsals started from the
+console. Each notification summarizes that rehearsal's controller records,
+including evidence IDs, rather than all historical records. An execution error
+is reported separately from assertion outcomes; raw error details are not sent.
+CLI-only runs do not post notifications.
+
+**Last automatic delivery** shows the most recent attempt since server start,
+including a safe error if Slack rejects it. Delivery has a timeout and does not
+change rehearsal outcomes. There are no automatic retries, persistent delivery
+queue, or replay after restart. Notification preferences persist beside the
+connection store as `.notifications.json`. Disconnect clears them; reconnecting
+requires opting in again. If the preferences cannot be read, automatic posting
+is disabled. For server-environment connections, disable notifications in
+Settings before replacing the environment's webhook.
 
 ## What is stored
 

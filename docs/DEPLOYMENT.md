@@ -47,6 +47,7 @@ cp .env.example .env
 | `HANDOFF_SLACK_STORE` / `HANDOFF_SLACK_ENCRYPTION_KEY` | No | Encrypted webhook store location / key (auto-generated sidecar key otherwise) |
 | `HANDOFF_SLACK_WEBHOOK` | No | Operator-managed fallback webhook instead of OAuth |
 | `HANDOFF_GITHUB_CLIENT_ID` / `HANDOFF_GITHUB_CLIENT_SECRET` | For GitHub | From your GitHub OAuth app (see [Connect GitHub](guide/connect-github.md)) |
+| `HANDOFF_GITHUB_APP_ID` / `HANDOFF_GITHUB_APP_PRIVATE_KEY` | For GitHub App mode | App ID and full multiline RSA PEM from the server's secret environment; Contents/Metadata read permissions, selected repositories only |
 | `HANDOFF_GITHUB_STORE` / `HANDOFF_GITHUB_ENCRYPTION_KEY` | No | Encrypted token store location / key |
 | `HANDOFF_SHARE_FILE` | No | Persistent read-only share-link store (SHA-256 hashes only) |
 | `HANDOFF_SLACK_BASE_URL`, `HANDOFF_GITHUB_BASE_URL`, `HANDOFF_GITHUB_API_BASE_URL` | No | Endpoint overrides (enterprise/testing) |

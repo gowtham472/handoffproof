@@ -1,5 +1,23 @@
 # HandoffProof security posture
 
+## Integration follow-up (2026-11-02)
+
+GitHub App mode keeps the RSA key in the server environment and persists only
+the installation ID inside the encrypted credential store. Every operation
+mints a fresh installation token with Contents/Metadata read permissions.
+Installation selection is operator-only and verifies App ownership, suspension,
+and token issuance. The server operator is trusted for every installation of
+the configured App; separate tenants require separate app/server configuration.
+Repository selection validates the branch remotely. API redirects are refused.
+OAuth mode remains available with its existing broader scope.
+
+Automatic Slack messages require saved opt-in settings, can filter successful
+rehearsals, and contain structured counts/evidence IDs without assertions, logs,
+model text, or raw execution errors. Delivery is bounded and never changes a
+controller outcome. Disconnect clears notification preferences. Last automatic
+delivery status is memory-only, with no retry queue. Manual Slack posts use the
+same structured summary and safe transport errors. Webhook redirects are refused.
+
 Status: **no known CRITICAL or HIGH findings open under the threat model below.**
 This is not a claim of being "fully secure" - no honest audit can make that claim.
 Last remediation: 2026-11-01, after a strict multi-agent audit (3 CRITICAL, 23 HIGH/MEDIUM/LOW findings).
@@ -136,7 +154,7 @@ the verified script).
   and OAuth bot/user access tokens are discarded, never stored. Disconnect
   deletes the stored webhook (it does not uninstall the Slack app).
   Posting sends only a server-built summary (evidence counts, pass/fail
-  totals, manifest integrity, up to three failing assertion names); webhook
+  totals, manifest integrity, up to six controller evidence IDs); webhook
   URLs, tokens, links, and model text are never posted or returned to the
   browser. Write endpoints require console auth plus the `X-HP-Request`
   header and the same 240/min rate limit as every other API.
