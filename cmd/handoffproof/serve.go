@@ -52,21 +52,22 @@ type job struct {
 }
 
 type server struct {
-	root         string
-	tokenHash    string // sha256 hex of the console token; the token itself is never stored
-	mu           sync.Mutex
-	jobs         map[string]*job
-	jobDone      map[string]time.Time
-	seq          int
-	rlMu         sync.Mutex
-	rlHits       map[string][]time.Time
-	shareMu      sync.Mutex
-	shares       map[string]time.Time // sha256(share id) -> expiry; read-only, GET only
-	sharesLoaded bool
-	slackMu      sync.Mutex
-	slackStates  map[string]slackOAuthState
-	githubMu     sync.Mutex
-	githubStates map[string]githubOAuthState
+	root          string
+	tokenHash     string // sha256 hex of the console token; the token itself is never stored
+	mu            sync.Mutex
+	jobs          map[string]*job
+	jobDone       map[string]time.Time
+	seq           int
+	rlMu          sync.Mutex
+	rlHits        map[string][]time.Time
+	shareMu       sync.Mutex
+	shares        map[string]time.Time // sha256(share id) -> expiry; read-only, GET only
+	sharesLoaded  bool
+	slackMu       sync.Mutex
+	slackStates   map[string]slackOAuthState
+	slackDelivery slackDelivery
+	githubMu      sync.Mutex
+	githubStates  map[string]githubOAuthState
 }
 
 func hashToken(tok string) string {
@@ -322,12 +323,14 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/api/integrations/slack", s.slackStatus)
 	mux.HandleFunc("/api/integrations/slack/connect", s.slackConnect)
 	mux.HandleFunc("/api/integrations/slack/callback", s.slackCallback)
+	mux.HandleFunc("/api/integrations/slack/notifications", s.slackNotifications)
 	mux.HandleFunc("/api/integrations/slack/", s.slackStatus)
 	mux.HandleFunc("/api/integrations/github", s.githubStatus)
 	mux.HandleFunc("/api/integrations/github/connect", s.githubConnect)
 	mux.HandleFunc("/api/integrations/github/callback", s.githubCallback)
 	mux.HandleFunc("/api/integrations/github/repositories", s.githubRepositories)
 	mux.HandleFunc("/api/integrations/github/repository", s.githubRepository)
+	mux.HandleFunc("/api/integrations/github/installations", s.githubInstallations)
 	mux.HandleFunc("/api/share", s.shareLink)
 	mux.HandleFunc("/assets/illustrations/", func(w http.ResponseWriter, r *http.Request) {
 		name := strings.TrimPrefix(r.URL.Path, "/assets/illustrations/")
@@ -668,6 +671,7 @@ func (s *server) runDrill(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 		defer cancel()
 		_, recs, err := ctrl.RunDrill(ctx, body.Drill, map[string]string{})
+		defer s.notifySlack(recs, err)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		s.jobDone[j.ID] = time.Now()

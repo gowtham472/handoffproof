@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -20,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gowtham472/handoffproof/internal/agent"
 	"github.com/gowtham472/handoffproof/internal/controller"
 )
 
@@ -220,6 +218,9 @@ func (s *server) loadSlackConnection() (slackConnection, bool, error) {
 	if err != nil {
 		return slackConnection{}, false, err
 	}
+	if len(nonce) != gcm.NonceSize() {
+		return slackConnection{}, false, fmt.Errorf("invalid stored Slack nonce")
+	}
 	ciphertext, err := base64.StdEncoding.DecodeString(stored.Ciphertext)
 	if err != nil {
 		return slackConnection{}, false, err
@@ -242,6 +243,10 @@ func (s *server) deleteSlackConnection() error {
 		return err
 	}
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	// Disconnect revokes automatic posting locally. A later connection must opt in.
+	if err := os.Remove(path + ".notifications.json"); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil
@@ -431,7 +436,7 @@ func (s *server) slackCallback(w http.ResponseWriter, r *http.Request) {
 
 // slackStatus reports the Slack connection (GET), removes a stored OAuth
 // connection (DELETE), or posts a controller-built report summary (POST).
-// The message contains only counts and failed-assertion names - never tokens,
+// The message contains only counts and controller evidence IDs - never tokens,
 // links, webhook URLs, or model text.
 func (s *server) slackStatus(w http.ResponseWriter, r *http.Request) {
 	conn := s.currentSlackConnection()
@@ -483,42 +488,13 @@ func (s *server) slackStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	store := loadEvidenceStore(s.root)
 	recs := store.All()
-	passed, failed := 0, 0
-	var fails []string
-	for _, rec := range recs {
-		if rec.Passed {
-			passed++
-		} else {
-			failed++
-			if len(fails) < 3 {
-				fails = append(fails, agent.Redact(rec.Assertion))
-			}
-		}
-	}
 	integrity := "manifest verified unchanged"
 	if err := controller.New(s.root).ManifestVerify(context.Background()); err != nil {
 		integrity = "manifest MISMATCH - do not trust"
 	}
-	text := fmt.Sprintf("HandoffProof report: %d evidence records (%d passed, %d failed). %s.", len(recs), passed, failed, integrity)
-	if len(fails) > 0 {
-		text += " Failing: " + strings.Join(fails, " · ")
-	}
-	body, _ := json.Marshal(map[string]string{"text": text})
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, hook, bytes.NewReader(body))
-	if err != nil {
-		writeJSON(w, 502, map[string]string{"error": "could not build Slack request"})
-		return
-	}
-	req.Header.Set("content-type", "application/json")
-	client := &http.Client{Timeout: 10 * time.Second}
-	res, err := client.Do(req)
-	if err != nil {
-		writeJSON(w, 502, map[string]string{"error": "Slack post failed: " + err.Error()})
-		return
-	}
-	defer res.Body.Close()
-	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		writeJSON(w, 502, map[string]string{"error": fmt.Sprintf("Slack rejected the post (status %d)", res.StatusCode)})
+	text := "HandoffProof report: " + slackEvidenceSummary(recs) + " " + integrity + "."
+	if err := s.postSlackMessage(r.Context(), hook, text); err != nil {
+		writeJSON(w, 502, map[string]string{"error": err.Error()})
 		return
 	}
 	writeJSON(w, 200, map[string]bool{"posted": true})

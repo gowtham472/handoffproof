@@ -318,6 +318,8 @@ func TestGitHubOAuthFlow(t *testing.T) {
 			_, _ = w.Write([]byte(`[{"full_name":"octocat/handoff","private":false,"default_branch":"main","html_url":"https://github.com/octocat/handoff"}]`))
 		case "/repos/octocat/handoff":
 			_, _ = w.Write([]byte(`{"full_name":"octocat/handoff","private":false,"default_branch":"main","html_url":"https://github.com/octocat/handoff"}`))
+		case "/repos/octocat/handoff/branches/main":
+			_, _ = w.Write([]byte(`{"name":"main"}`))
 		default:
 			http.NotFound(w, r)
 		}

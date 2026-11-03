@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -38,8 +39,9 @@ type githubConnection struct {
 }
 
 type githubTokens struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token,omitempty"`
+	AccessToken    string `json:"access_token"`
+	RefreshToken   string `json:"refresh_token,omitempty"`
+	InstallationID int64  `json:"installation_id,omitempty"`
 }
 
 type githubStored struct {
@@ -60,7 +62,15 @@ type githubOAuthState struct {
 	Expires     time.Time
 }
 
-var githubRepoRe = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
+var githubRepoRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9_.-]+$`)
+
+func validGitHubRepository(repository string) bool {
+	if !githubRepoRe.MatchString(repository) {
+		return false
+	}
+	name := strings.Split(repository, "/")[1]
+	return name != "." && name != ".."
+}
 
 func githubClientID() string {
 	if v := os.Getenv("HANDOFF_GITHUB_CLIENT_ID"); v != "" {
@@ -167,6 +177,9 @@ func githubEncryptionKey(storePath string) ([]byte, error) {
 }
 
 func (s *server) saveGitHubConnection(conn githubConnection, tokens githubTokens) error {
+	if tokens.InstallationID > 0 {
+		tokens.AccessToken, tokens.RefreshToken = "", ""
+	}
 	s.githubMu.Lock()
 	defer s.githubMu.Unlock()
 	path, err := githubStorePath()
@@ -245,6 +258,9 @@ func (s *server) loadGitHubConnectionBody() (githubConnection, githubTokens, boo
 	if err != nil {
 		return githubConnection{}, githubTokens{}, false, err
 	}
+	if len(nonce) != gcm.NonceSize() {
+		return githubConnection{}, githubTokens{}, false, fmt.Errorf("invalid stored GitHub nonce")
+	}
 	ciphertext, err := base64.StdEncoding.DecodeString(stored.Ciphertext)
 	if err != nil {
 		return githubConnection{}, githubTokens{}, false, err
@@ -267,7 +283,7 @@ func (s *server) currentGitHubConnection() (githubConnection, githubTokens, bool
 	s.githubMu.Lock()
 	defer s.githubMu.Unlock()
 	conn, tokens, ok, err := s.loadGitHubConnectionBody()
-	return conn, tokens, err == nil && ok && tokens.AccessToken != ""
+	return conn, tokens, err == nil && ok && (tokens.AccessToken != "" || tokens.InstallationID > 0)
 }
 
 func (s *server) deleteGitHubConnection() error {
@@ -363,27 +379,7 @@ func (s *server) githubConnect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) githubAPI(ctxReq *http.Request, token, path string, out any) error {
-	req, err := http.NewRequestWithContext(ctxReq.Context(), http.MethodGet, githubAPIBaseURL()+path, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("User-Agent", "HandoffProof")
-	client := &http.Client{Timeout: 10 * time.Second}
-	res, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(res.Body, 4<<20))
-	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return fmt.Errorf("GitHub API returned %d", res.StatusCode)
-	}
-	if out == nil {
-		return nil
-	}
-	return json.Unmarshal(raw, out)
+	return githubRequest(ctxReq.Context(), http.MethodGet, token, path, nil, out)
 }
 
 func (s *server) githubCallback(w http.ResponseWriter, r *http.Request) {
@@ -452,7 +448,7 @@ func (s *server) githubCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) githubStatus(w http.ResponseWriter, r *http.Request) {
-	conn, _, connected := s.currentGitHubConnection()
+	conn, tokens, connected := s.currentGitHubConnection()
 	if r.Method == http.MethodGet {
 		redirectURI, reason := s.githubConfig(r)
 		writeJSON(w, 200, map[string]any{
@@ -462,6 +458,14 @@ func (s *server) githubStatus(w http.ResponseWriter, r *http.Request) {
 			"redirect_url": redirectURI, "connect_url": "/api/integrations/github/connect",
 			"login": conn.Login, "name": conn.Name, "profile_url": conn.ProfileURL,
 			"repository": conn.Repository, "branch": conn.Branch, "scope": conn.Scope,
+			"app_configured": githubAppConfigured(),
+			"authentication": func() string {
+				if tokens.InstallationID > 0 {
+					return "github_app"
+				}
+				return "oauth"
+			}(),
+			"installation_id": tokens.InstallationID,
 			"repository_url": func() string {
 				if conn.Repository == "" {
 					return ""
@@ -506,17 +510,33 @@ func (s *server) githubRepositories(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 403, map[string]string{"error": "only console operators can list GitHub repositories"})
 		return
 	}
-	_, tokens, connected := s.currentGitHubConnection()
-	if !connected {
-		writeJSON(w, 400, map[string]string{"error": "GitHub is not connected"})
+	page, valid := githubPage(r)
+	if !valid {
+		writeJSON(w, 400, map[string]string{"error": "invalid page"})
+		return
+	}
+	_, tokens, err := s.githubCredentials(r.Context())
+	if err != nil {
+		writeJSON(w, 400, map[string]string{"error": err.Error()})
 		return
 	}
 	var repos []githubRepo
-	if err := s.githubAPI(r, tokens.AccessToken, "/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member", &repos); err != nil {
+	path := "/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member&page=" + strconv.Itoa(page)
+	var listErr error
+	if tokens.InstallationID > 0 {
+		var out struct {
+			Repositories []githubRepo `json:"repositories"`
+		}
+		listErr = s.githubAPI(r, tokens.AccessToken, "/installation/repositories?per_page=100&page="+strconv.Itoa(page), &out)
+		repos = out.Repositories
+	} else {
+		listErr = s.githubAPI(r, tokens.AccessToken, path, &repos)
+	}
+	if listErr != nil {
 		writeJSON(w, 502, map[string]string{"error": "could not list GitHub repositories"})
 		return
 	}
-	writeJSON(w, 200, map[string]any{"repositories": repos})
+	writeJSON(w, 200, map[string]any{"repositories": repos, "page": page, "has_more": len(repos) == 100})
 }
 
 func (s *server) githubRepository(w http.ResponseWriter, r *http.Request) {
@@ -528,21 +548,21 @@ func (s *server) githubRepository(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 403, map[string]string{"error": "only console operators can choose the GitHub repository"})
 		return
 	}
-	conn, tokens, connected := s.currentGitHubConnection()
-	if !connected {
-		writeJSON(w, 400, map[string]string{"error": "GitHub is not connected"})
+	conn, tokens, err := s.githubCredentials(r.Context())
+	if err != nil {
+		writeJSON(w, 400, map[string]string{"error": err.Error()})
 		return
 	}
 	var body struct {
 		Repository string `json:"repository"`
 		Branch     string `json:"branch"`
 	}
-	if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&body); err != nil || !githubRepoRe.MatchString(body.Repository) {
+	if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&body); err != nil || !validGitHubRepository(body.Repository) {
 		writeJSON(w, 400, map[string]string{"error": "repository must look like owner/repository"})
 		return
 	}
 	var repo githubRepo
-	if err := s.githubAPI(r, tokens.AccessToken, "/repos/"+body.Repository, &repo); err != nil {
+	if err := s.githubAPI(r, tokens.AccessToken, "/repos/"+body.Repository, &repo); err != nil || !strings.EqualFold(repo.FullName, body.Repository) {
 		writeJSON(w, 400, map[string]string{"error": "GitHub repository is not accessible with this connection"})
 		return
 	}
@@ -552,6 +572,10 @@ func (s *server) githubRepository(w http.ResponseWriter, r *http.Request) {
 	}
 	if branch == "" || len(branch) > 255 || strings.ContainsAny(branch, " \t\r\n") {
 		writeJSON(w, 400, map[string]string{"error": "invalid branch"})
+		return
+	}
+	if err := s.githubAPI(r, tokens.AccessToken, "/repos/"+body.Repository+"/branches/"+url.PathEscape(branch), nil); err != nil {
+		writeJSON(w, 400, map[string]string{"error": "branch is not accessible in this repository"})
 		return
 	}
 	conn.Repository = repo.FullName

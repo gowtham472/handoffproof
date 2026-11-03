@@ -54,15 +54,26 @@ func importLocalSource(localPath, dest string) error {
 }
 
 func importGitHubSource(ctx context.Context, s *server, repository, branch, dest string) error {
-	_, tokens, connected := s.currentGitHubConnection()
-	if !connected {
-		return fmt.Errorf("GitHub is not connected")
+	conn, tokens, credentialErr := s.githubCredentials(ctx)
+	if credentialErr != nil {
+		return credentialErr
 	}
-	if !githubRepoRe.MatchString(repository) {
+	if !validGitHubRepository(repository) {
 		return fmt.Errorf("repository must look like owner/repository")
 	}
 	if branch == "" {
-		branch = "main"
+		if strings.EqualFold(repository, conn.Repository) && conn.Branch != "" {
+			branch = conn.Branch
+		} else {
+			var repo githubRepo
+			if err := githubRequest(ctx, http.MethodGet, tokens.AccessToken, "/repos/"+repository, nil, &repo); err != nil {
+				return err
+			}
+			branch = repo.DefaultBranch
+			if branch == "" {
+				return fmt.Errorf("repository has no default branch")
+			}
+		}
 	}
 	api := githubAPIBaseURL() + "/repos/" + repository + "/zipball/" + url.PathEscape(branch)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, api, nil)
@@ -364,6 +375,7 @@ func (s *server) applicationByID(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 12*time.Minute)
 		defer cancel()
 		recs, err := byoa.Run(ctx, byoa.RunRequest{SourceDir: app.SourceDir, Profile: profile, Env: envValues, Kind: body.Kind, Target: body.Target, RunID: runID})
+		defer func() { go s.notifySlack(recs, err) }()
 		if err != nil && len(recs) == 0 {
 			writeJSON(w, 400, map[string]string{"error": err.Error()})
 			return
