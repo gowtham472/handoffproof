@@ -331,7 +331,21 @@ Meta model roles (numbers come only from [docs/RESULTS.md](docs/RESULTS.md), gen
   machine), and Glimmer's structured-output support is not documented, so it is unverified.
 - **Muse Voice Transcribe** transcribes Exit Interview audio; tests use a fixture transcript,
   and local private mode refuses it because it is a cloud API.
-- Not built: the BYOA profile auto-drafter and the image-knowledge pipeline (SAM 3.1, Muse Image).
+- **Muse Wonder** also drafts `handoffproof.json` for imported Compose apps (`handoffproof draft`),
+  read-only, with validator feedback for up to 3 attempts; a draft reaches the wizard only after
+  strict decoding, secret screening, validation and a passing sandbox baseline. Measured on the
+  final code: miniapp 0/3 drafts passed unedited (two copied a hardcoded test token and were
+  rejected; one picked the wrong probe runtime). An earlier run passed 1/3. demo-app was not run
+  with the final code (API budget), and heldout-app has no Compose file.
+- **Experimental, synthetic fixture only:** `handoffproof whiteboard` uses **SAM 3.1** to find
+  screens (pixelated before any model sees them) and sticky notes, then **Muse Spark 1.3** vision
+  turns note crops into Exit Interview claims for the controller to verify. **Muse Image**
+  generated the fixture, which is labelled synthetic. One live run: 1 screen pixelated, the fake
+  key on it never reached any record, the injected note was dropped, and 4 claims were verified.
+  This shows the pipeline works on one image, not general accuracy.
+- Known limit: the controller's config and backup claim checks ignore what a claim asserts
+  ("X is documented" is checked as if it said "X is undocumented"), so a true claim can show
+  as contradicted. This affects the Exit Interview and the whiteboard alike.
 
 Deploying for real users — HTTPS, environment, integrations, operations, and
 troubleshooting — is covered in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).

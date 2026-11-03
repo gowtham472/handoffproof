@@ -1,5 +1,20 @@
 # HandoffProof - 3-day build plan (Step 1)
 
+## F6 + F7 (2026-11-04, code DONE — see RESULTS.md for measured numbers)
+
+F6 BYOA auto-drafter: `internal/draft/` (new, unprotected, +test),
+`prompts/f6_profile_draft.json` (new), `cmd/handoffproof/draft.go` (+test,
+`/api/drafts/latest`), wizard button in `cmd/handoffproof/web/index.html`,
+`.env.example`. Measured: `handoffproof draft` on miniapp and demo-app, 3 reps each,
+rendered by `draft --render`. F7 whiteboard (experimental):
+`internal/agent/media.go` (+test; image gen, SAM 3.1, image-input extraction),
+`internal/whiteboard/` (new, +test), `prompts/f7_image_claims.json` (new),
+`cmd/handoffproof/whiteboard.go` (+test), fixture
+`eval/fixtures/whiteboard-synthetic.{png,label.json}`. Live run:
+`evidence/whiteboard-20261103-184027.json`. Protected changes awaiting manifest
+approval: `internal/agent/media*.go`, `cmd/handoffproof/*`, `prompts/*`.
+Open decision: claim polarity in controller config/backup verification.
+
 ## F5: Private mode with Muse Glimmer (2026-11-03, code DONE — quality vs Spark not measured)
 
 `HANDOFF_PRIVATE_MODE=local|hybrid` (default off) routes source-reading phases

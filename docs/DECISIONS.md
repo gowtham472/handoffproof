@@ -1,5 +1,62 @@
 # Decisions
 
+## F6 + F7: profile auto-drafter and whiteboard claims (2026-11-04)
+
+F6 decision: `handoffproof draft --app-dir DIR --env-file F [--reps N]` runs one
+read-only Wonder phase (`prompts/f6_profile_draft.json`; tools: static scan,
+list/read/search; no drill or repair tools) on a copy of the app with any
+existing `handoffproof.json` removed, then: strict decode (unknown fields are an
+error), secret screening (configured values of secret-named or
+secret-declared env vars, plus the redactor over string values only), profile
+validation + Compose denylist, and a `fresh_deployment_baseline` through the
+existing BYOA runner. Only a draft that passes all of it is "shown": served by
+`/api/drafts/latest` (operator-only) to the wizard's "Load verified auto-draft"
+button, where a human reviews it before import. Contributor model IDs are
+refused for drafting. Records go to `evidence/drafts/` with configured values
+scrubbed. Options considered: letting the controller strip unknown fields —
+rejected, a strict contract is safer; running drafting in the Control Room as a
+job — deferred, the CLI plus a verified-draft loader meets "human reviews in the
+wizard" without a long-running HTTP job. Prompt v1 produced 3/3 miniapp drafts
+with invented fields (`required_for`, `verified`, `source`), failing strict
+decode; v2 adds `additionalProperties: false` on every schema object plus an
+explicit rule. v2 then scored 0/6 (miniapp 3, demo-app 3), every draft failing
+validation before any baseline: non-string body values, backup stores naming
+Compose volumes, steps with no service, a non-slug id. v3 therefore (a) feeds
+the validator's errors (field and env names only; configured values scrubbed)
+back for up to 3 attempts per draft, mirroring the 2 schema retries, and
+records `attempts` and `first_attempt_valid` so the table shows both; (b) adds
+prompt rules for those four mistakes. The baseline is never fed back: it stays
+the controller's one-shot verdict. The first v3 run reused one runner across
+attempts, so the loop's 40-call per-phase tool budget was shared and 2 demo-app
+drafts died on "tool budget exceeded"; fixed with a fresh runner per attempt.
+v1, v2 and that run are kept in `evidence/drafts/prompt-v1/`, `prompt-v2/` and
+`prompt-v3-shared-budget/` (miniapp 1/3, demo-app 0/3 there) and excluded from
+the table. One
+v2 record (`draft-miniapp-20261103-184356-2.json`) contains the literal
+`test-token`, a value hardcoded in the miniapp fixture's public `server.py`; it
+was written by a build before configured-value scrubbing existed and is left
+unedited rather than altering evidence after the fact. heldout-app has no
+Compose file, so it cannot be baselined and is reported as not applicable.
+
+F7 decision (experimental; user asked to build it although F5 quality is not
+measured): `handoffproof whiteboard [--generate]`. Muse Image
+(`muse-image-1.0`, `POST /v1/images/generations`, PNG) made the fixture
+`eval/fixtures/whiteboard-synthetic.png`, labelled by
+`whiteboard-synthetic.label.json` (synthetic, prompt, sha256). SAM 3.1
+(`sam-3.1` on `/v1/responses`, base64 `input_image` — accepted live although the
+docs only show URLs) is called twice: "screen" first, failing closed (no vision
+call if it errors), then "sticky note". Boxes are parsed from the special-token
+text; masks are not decoded. Screens are pixelated, notes cropped from the
+pixelated image, and Spark 1.3 reads crops + board via `input_image` with
+`text.format` (works together live; the docs show only a chat example) into the
+F4 claim schema; F4's controller filter and VerifyClaims decide. Verified on dev.meta.ai
+2026-11-04: image $0.01, SAM $2.50/1,000 images.
+Known limit found by the live F7 run (applies to F4 too): the controller's
+config rule confirms a claim only when the env var is undocumented, and the
+backup rule only when backup evidence failed. It does not read the claim's
+polarity, so "DATABASE_URL is documented in the README" (true) is marked
+contradicted. Not changed here: it is protected verdict logic and needs a decision.
+
 ## F5: Private mode with Muse Glimmer (2026-11-03)
 
 Decision: `HANDOFF_PRIVATE_MODE=off|local|hybrid` on top of the F1 router, in a
