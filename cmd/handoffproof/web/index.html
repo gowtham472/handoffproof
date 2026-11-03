@@ -395,7 +395,7 @@
         <div class="field" id="app-github-wrap" hidden><label for="app-repository">GitHub repository</label><input id="app-repository" type="text" placeholder="owner/repository"><label for="app-branch">Branch</label><input id="app-branch" type="text" placeholder="main"><span class="hint">Connect GitHub in Settings first. The archive is downloaded with the server-side token.</span></div>
         <div class="field"><label for="app-profile">Application profile (`handoffproof.json`)</label><textarea id="app-profile" rows="18" class="mono" style="width:100%;background:var(--layer);color:var(--text);border:1px solid var(--border-strong);padding:12px;font:inherit"></textarea><span class="hint">Declare services, health checks, environment names, credentials, workflows, data stores, and backup commands. No secret values or shell commands belong in the profile.</span></div>
         <div class="field"><label for="app-env">Test environment values</label><textarea id="app-env" rows="5" class="mono" placeholder="DATABASE_URL=postgres://...&#10;MAIL_API_TOKEN=test-token" style="width:100%;background:var(--layer);color:var(--text);border:1px solid var(--border-strong);padding:12px;font:inherit"></textarea><span class="hint">One KEY=value per line. Use sandbox/test credentials only. Values are encrypted on the server.</span></div>
-        <div class="btnrow"><button class="btn" id="app-create" type="button">Import and validate application</button></div>
+        <div class="btnrow"><button class="btn ghost" id="app-load-draft" type="button">Load verified auto-draft</button><button class="btn" id="app-create" type="button">Import and validate application</button></div>
         <div class="small muted" id="app-create-msg" role="status"></div>
       </section><aside class="detail-note"><h3>Before you begin</h3><p>Have your Docker Compose application and HandoffProof profile ready. Use test credentials for your rehearsal environment.</p><ol><li>Choose a local folder or GitHub source.</li><li>Describe the workflows in your profile.</li><li>Import, validate, then run a baseline.</li></ol><button class="btn ghost" data-goto="settings-github">Manage GitHub <svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-external"/></svg></button></aside></div></section>
 <section class="page detail-page" id="page-application-detail"><button class="back-link" data-goto="applications"><svg class="ic" aria-hidden="true"><use href="/landing/phosphor.svg#i-back"/></svg> Applications</button><div class="page-head"><div><p class="eyebrow">Applications / Workspace</p><h1 id="application-detail-title">Application</h1><p>Review the source, validate its setup, and run a rehearsal.</p></div></div><div id="application-detail-body"></div></section>
@@ -1382,6 +1382,17 @@ async function loadApplications() {
   } catch (e) { $('applications-list').innerHTML = '<p class="empty">Could not load applications. <button class="btn ghost" id="applications-retry">Try again</button></p>'; }
 }
 document.addEventListener('click', e => { if (e.target.id === 'applications-retry') loadApplications(); });
+if ($('app-load-draft')) $('app-load-draft').addEventListener('click', async () => {
+  const msg = $('app-create-msg');
+  const folder = ($('app-local-path').value || $('app-repository').value).split(/[\\/]/).filter(Boolean).pop() || '';
+  if (!folder) { msg.textContent = 'Enter the application folder or repository first.'; return; }
+  try {
+    const j = await getJSON('/api/drafts/latest?app=' + encodeURIComponent(folder));
+    if (!j.found) { msg.textContent = 'No verified draft for ' + folder + '. Run: handoffproof draft --app-dir <folder> --env-file <test env>'; return; }
+    $('app-profile').value = JSON.stringify(j.profile, null, 2);
+    msg.textContent = 'Loaded a ' + j.model + ' draft that passed a sandbox baseline (' + (j.evidence_ids || []).length + ' evidence records). Review every field before importing.';
+  } catch (e) { msg.textContent = 'Could not load draft: ' + e.message; }
+});
 if ($('app-create')) $('app-create').addEventListener('click', async () => {
   const msg = $('app-create-msg');
   try {

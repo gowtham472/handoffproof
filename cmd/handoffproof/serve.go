@@ -461,6 +461,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/api/drills/run", s.runDrill)
 	mux.HandleFunc("/api/interview/latest", s.interviewLatest)
 	mux.HandleFunc("/api/private-mode", privateModeStatus)
+	mux.HandleFunc("/api/drafts/latest", s.draftLatest)
 	mux.HandleFunc("/api/applications", s.applications)
 	mux.HandleFunc("/api/applications/", s.applicationByID)
 	mux.HandleFunc("/api/jobs/", func(w http.ResponseWriter, r *http.Request) {

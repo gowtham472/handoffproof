@@ -47,6 +47,10 @@ func main() {
 		err = cmdEval(ctx, root, os.Args[2:])
 	case "interview":
 		err = cmdInterview(ctx, root, os.Args[2:])
+	case "whiteboard":
+		err = cmdWhiteboard(ctx, root, os.Args[2:])
+	case "draft":
+		err = cmdDraft(ctx, root, os.Args[2:])
 	case "pr":
 		err = cmdPR(ctx, root, os.Args[2:])
 	case "score":
@@ -73,6 +77,8 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  verify --diagnosis FILE          adversarial citation + evidence check")
 	fmt.Fprintln(os.Stderr, "  eval [--models a,b] [--reps N] [--render-only]  regenerate docs/RESULTS.md")
 	fmt.Fprintln(os.Stderr, "  interview --audio FILE           exit-interview verifier (or --transcript fixture.json)")
+	fmt.Fprintln(os.Stderr, "  whiteboard [--image F|--generate] experimental: verify claims read from a whiteboard photo")
+	fmt.Fprintln(os.Stderr, "  draft --app-dir DIR [--env-file F] draft handoffproof.json, validate, sandbox baseline")
 	fmt.Fprintln(os.Stderr, "  pr --diff FILE [--execute]       guardrailed remediation PR (dry-run default)")
 	fmt.Fprintln(os.Stderr, "  score                            Handover Score + trend append")
 }
