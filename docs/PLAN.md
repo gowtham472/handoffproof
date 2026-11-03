@@ -1,28 +1,147 @@
 # HandoffProof - 3-day build plan (Step 1)
 
+## F1: Per-phase model routing (2026-11-04, implemented — manifest refresh pending)
+
+Implementation complete and green (see the F1 row in docs/DECISIONS.md).
+STOPPED before any manifest refresh/verify: awaiting explicit approval because
+`internal/agent/*` and `cmd/handoffproof/main.go` are manifest-hashed. Nothing
+committed yet. `bash scripts/check.sh` cannot run end-to-end in this shell
+(pre-existing Git Bash socket error); its Go gates were run directly and pass:
+gofmt clean, `go vet` clean, `go build ./...` ok, `go test` ok for
+`internal/agent`, `cmd/handoffproof`, `internal/scan`, `internal/evidence`,
+`internal/report`. Next after approval: refresh manifest (separate commit), then F2.
+
+Goal: route each of the six agent phases to a configured model/provider
+without changing default behaviour (Spark 1.3 via Responses for all phases).
+Files to touch: `internal/agent/routing.go` (new), `internal/agent/provider.go`
+(new), `internal/agent/loop.go`, `internal/agent/spec.go`, `internal/agent/client.go`,
+`internal/agent/routing_test.go` (new), `cmd/handoffproof/main.go` (router wiring
++ log line), `.env.example`, `docs/DECISIONS.md`. Protected (needs manifest-refresh
+approval after the change): `internal/agent/*`, plus `cmd/handoffproof/main.go`
+which `scripts/manifest.sh` also hashes. No changes to `acceptance/`,
+`internal/controller/`, `internal/drills/`, `internal/evidence/`, `evidence/`,
+prompts, or `scripts/manifest.sh`. Assumption: per-phase env names
+`HANDOFF_MODEL_<INTAKE|DEPENDENCY|DIAGNOSIS|REPAIR|ASSESSMENT|VERIFICATION>`
+(model ID), `HANDOFF_PROVIDER_<...>` (`meta-responses`|`openai-chat`),
+`HANDOFF_BASE_URL_<...>`, `HANDOFF_KEY_ENV_<...>` (name of env var holding the key).
+
+## Video rebuild after clarity review (2026-11-03)
+
+Status: Full v4 exported and validated on 2026-11-03. The 175-second master,
+poster, 21 caption cues, script, and measured QA report are saved under demo/ and docs/.
+Full video/audio decode passed; 13 extracted frames were reviewed. TypeScript,
+skill checks, and rehearsal integrity passed. The complete project gate remains
+limited by Windows Application Control blocking two test executables.
+The user rejected the prior cut's static screen holds
+and unclear explanation. This supersedes the completed 2026-11-02 video plan.
+
+Reference research covers other projects only. A D-drive inventory and sampled
+rendered sequences were inspected; detailed findings and the proposed 2:55
+storyboard are in `docs/VIDEO_REBUILD.md`. The SIH/LATTICE film is the primary
+reference for explanation, mascot direction, recorded interactions, and camera
+focus. BIS supplies additional character/action timing; Nextship supplies
+progressive information reveals. Keep HandoffProof's dark application palette,
+original owl, Plus Jakarta Sans, Phosphor icons, and square controls.
+
+1. Build a narrated, action-driven story: customer books, developer-owned email
+   access disappears, confirmation stops, HandoffProof rehearses and exposes it.
+   Animate the dependency and the owl's attention/gestures, then transition into
+   a continuous real browser demonstration. First review a 20–30 second motion
+   sample before paying for the full render.
+2. Record the current application and actual integration workflows: connect
+   GitHub, select repository/branch, import a supported application; connect
+   Slack to the designated demo channel, enable completion/failure-only delivery,
+   show a real notification and delivery status. Inspect exact authorization
+   screens before any new access grant; keep credentials outside recordings.
+3. Capture an actual rehearsal and explain its observed result, Meta diagnosis,
+   source reference, and handover action in plain language. Respect manifest
+   verification before/after drills. Resolve any manifest mismatch through the
+   separately required approval, never bypass it for filming.
+4. Compose under 3 minutes with continuous captured actions, measured click
+   timing, deliberate camera targets, concise narration/captions, and sound
+   accents. Preserve the previous master until the replacement is reviewed.
+5. Check first-viewer comprehension, UI/result legibility, integration claims,
+   audio, timing, full video decode, TypeScript, and required project checks.
+
+Capture prerequisites found without displaying secret values: Slack OAuth
+credentials exist but HANDOFF_PUBLIC_URL is HTTP; Slack needs a configured HTTPS
+callback. GitHub OAuth credentials exist; GitHub App ID/private key are absent.
+The demo repository and Slack workspace/channel need to be identified before
+connection changes or posting. The user authorized choosing a GitHub repository,
+selected DoodleByte Studio for Slack, and approved the integrity refresh.
+The 30-second animated opening has rendered; full recording/editing is in progress.
+
+## Slack and GitHub follow-up (2026-11-02)
+
+Status: APPROVED by the user's follow-up to implement both planned features,
+complete existing connections, and add useful integration features. Additional
+scope: Slack failure-only filtering and delivery status; GitHub repository
+pagination and server-side branch validation. The request is
+to implement the planned Slack and GitHub features. Existing OAuth connections,
+manual Slack posting, repository selection, and GitHub application imports are
+already implemented. The guides explicitly identify the following future work.
+
+1. Slack: add opt-in automatic completion notifications for console-triggered
+   demo and BYOA rehearsals. Reuse the channel connection and server-built
+   summary, cite controller evidence IDs, and keep delivery bounded. Show
+   notification settings and delivery errors without changing drill results.
+   Do not send messages during development except to local test servers.
+2. GitHub: add installation authentication using a GitHub App with repository
+   selection and minimum read permissions for current onboarding operations.
+   Keep private keys in server environment configuration, mint short-lived
+   installation tokens server-side, and handle expiry and revoked access.
+   Preserve existing OAuth connections during migration. Do not add repository
+   writes, PR creation, approval, or merging to this scope.
+3. Confirm API contracts against official Slack/GitHub documentation before
+   implementation. Update Settings, guides, deployment/security documentation,
+   and docs/DECISIONS.md to describe the implemented behavior and permissions.
+4. Test authorization, opt-in behavior, notification failures, installation
+   access boundaries, token expiry, and secret handling using local HTTP test
+   servers. Run `bash scripts/check.sh` after each implementation step and
+   review the console changes in a browser. Report live-account checks as
+   unavailable unless actually performed with authorized connections.
+
+No protected-path or runtime-agent-prompt edits are proposed. Preserve the
+concurrent film work and existing documentation changes. If console assets are
+covered by the manifest, prepare the changes and request the required manifest
+refresh approval after the implementation is reviewable.
+
+Implementation: notification preferences and failure filter, delivery status,
+GitHub App installation selection/read tokens, repository pagination, branch
+validation, and default-branch-aware archive imports are in place. Existing
+OAuth flows remain supported. Regression tests use local fake services and
+synthetic controller records; they do not supply new drill evidence IDs.
+`bash scripts/check.sh` passes Go formatting, vet, tests, and skills validation;
+its remaining gate is the manifest refresh requiring explicit approval.
+Browser review with isolated synthetic settings confirmed preference saving,
+persisted failure filtering, GitHub App setup/error controls, and the existing
+OAuth repository settings. Console JavaScript syntax and diff whitespace checks
+also completed. No real Slack message or GitHub write was performed.
+
 ## Video refresh (2026-11-02)
 
-Status: PROPOSED - waiting for approval before producing the next cut.
+Status: COMPLETED on 2026-11-02 after the user's approved direction: retain the owl as the central guide,
+use real application footage, completely redesign the visuals in the website's
+theme/colors, and study the Segue and other local film references.
 
-Current cut: 150.016 seconds, H.264 1920 x 1080 at 30 fps with AAC audio,
-measured using the bundled ffprobe. It uses recreated UI. The film source now
-passes `npm run typecheck` after adding its missing React type dependencies.
-
-Proposed next cut: about 2:45, using actual application captures and recorded
-controller evidence. Keep the owl and music as the default proposal; a style
-choice has been presented to the user. Use the current app palette, square
-buttons, legible captions, and the new high-resolution product captures.
+Implementation: a 2:45 composition using actual application captures and
+recorded controller evidence. The original SVG owl is the central guide, with
+transparent vector poses, the website's charcoal/blue/purple palette, local
+Plus Jakarta Sans, Phosphor icons, animated diagrams, camera moves, music, and
+burned-in explanations. The 165-second master is exported and checked, with
+poster, SRT, editable source, and a validation record in `docs/VIDEO_VALIDATION.md`.
 
 | Time | Content |
 | --- | --- |
-| 0:00-0:12 | Current landing page and the developer-handover problem |
-| 0:12-0:32 | Baseline: registration, booking, confirmation email |
-| 0:32-0:58 | Withdrawn-token drill; booking continues while the email assertion fails |
-| 0:58-1:24 | Actual Evidence and Insights screens: evidence ID, log, source citation, and the Meta diagnosis |
-| 1:24-1:42 | Missing configuration and incomplete handover documentation |
-| 1:42-2:12 | Repair proposal and controller rerun, with before/after evidence IDs and unchanged acceptance hashes |
-| 2:12-2:32 | Applications and the focused GitHub/Slack settings pages |
-| 2:32-2:45 | Measured baseline comparison, limitations, and repository link |
+| 0:00-0:20 | Owl introduction, current landing page, developer-handover problem |
+| 0:20-0:35 | Baseline: registration, booking, confirmation email |
+| 0:35-0:58 | Withdrawn token; booking persists while the email assertion fails |
+| 0:58-1:10 | Animated comparison of the two controller outcomes |
+| 1:10-1:32 | Actual Insights, cited source files, recorded Meta diagnosis |
+| 1:32-1:48 | Missing configuration and the reminder-job failure |
+| 1:48-2:06 | Repair proposal, matching recorded hashes, explicit missing recovery evidence |
+| 2:06-2:26 | Applications and focused integration settings |
+| 2:26-2:45 | Measured comparison, evaluation limits, repository link |
 
 Before rendering: match each on-screen outcome to its controller evidence ID;
 label recorded/replayed material; show a real Meta response rather than a staged
@@ -30,8 +149,17 @@ typing effect; do not present an integration as connected or a message as posted
 unless the capture supports it. Correct the script's four-fault wording to match
 the five-fault evaluation. Keep token usage out of the main proof sequence.
 
-Deliverables after approval: revised script/captions, real UI captures, a checked
-1080p MP4 under three minutes, poster/thumbnail, and a brief validation record.
+Validation so far: `npm run typecheck` passed. The first project check reported
+`check OK` / `manifest OK`; the later check passes Go formatting, vet, tests, and
+skills but stops at the manifest because concurrent integration work changed
+`cmd/handoffproof`. Leave those files and the manifest untouched by this film
+task. Six displayed evidence IDs are checked against existing controller
+records. No new drill, Meta call, connection, or Slack post ran for this capture.
+The stored assessment has no new recovery evidence ID, so the film explicitly
+leaves recovery unverified.
+
+Deliverables: revised script/captions, real UI captures, a checked 1080p MP4 under
+three minutes, poster/thumbnail, and a brief validation record.
 
 ## UI layout and landing page refresh (2026-11-02)
 

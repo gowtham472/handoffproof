@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // Redact masks secret-like strings (hp-untrusted-input, hp-secrets-and-safety).
@@ -28,10 +29,14 @@ func Redact(s string) string {
 }
 
 // Runner executes model phases with tool use and schema validation.
+// Router is optional: when nil, every phase uses Cfg exactly as before
+// (Meta Responses API), so default runs are byte-for-byte equivalent in
+// routing to the pre-routing behaviour.
 type Runner struct {
 	Cfg    Config
 	Spec   *Spec
 	Exec   *Executor
+	Router *Router
 	budget budget
 }
 
@@ -53,11 +58,16 @@ type UsageTotal struct {
 	Calls        int
 }
 
-// PhaseResult is one validated phase output.
+// PhaseResult is one validated phase output. ModelID, Provider and Latency
+// record how the phase ran; every evidence log line carries them alongside
+// token usage.
 type PhaseResult struct {
-	Phase string
-	JSON  json.RawMessage
-	Usage UsageTotal
+	Phase    string
+	JSON     json.RawMessage
+	Usage    UsageTotal
+	ModelID  string
+	Provider string
+	Latency  time.Duration
 }
 
 var phaseCalls = 40  // max_tool_calls_per_phase
@@ -71,18 +81,38 @@ var maxPhaseTurns = 24
 // maxSchemaRetries caps consecutive schema-validation failures per phase.
 var maxSchemaRetries = 2
 
+// routeFor resolves the phase route: the configured Router when set,
+// otherwise Cfg exactly as before (Meta Responses API).
+func (r *Runner) routeFor(phase string) (PhaseRoute, error) {
+	if r.Router == nil {
+		return PhaseRoute{
+			ModelID:  r.Cfg.ModelID,
+			BaseURL:  strings.TrimSuffix(r.Cfg.BaseURL, "/"),
+			APIKey:   r.Cfg.APIKey,
+			Provider: ProviderMetaResponses,
+		}, nil
+	}
+	return r.Router.ForPhase(phase)
+}
+
 // RunPhase runs one phase: model turns with tools until it returns JSON
 // validating against the phase schema. Schema failures are retried with
 // the validation error (up to maxSchemaRetries in a row), then the run
 // fails closed. Turns are capped separately at maxPhaseTurns.
+// The phase runs behind its routed provider; validation, retries, budgets
+// and fail-closed behaviour are identical for all providers.
 func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult, error) {
 	schema, ok := r.Spec.Schemas[phase]
 	if !ok {
 		return nil, fmt.Errorf("unknown phase %q", phase)
 	}
-	input := []any{userText(task)}
-	var prevID string
+	route, err := r.routeFor(phase)
+	if err != nil {
+		return nil, err
+	}
+	st := newTurnState(route, r.Spec, schema, phase, task, r.Spec.MaxOutputTokens, r.Cfg.HTTP)
 	var usage UsageTotal
+	var latency time.Duration
 	violations := ""
 	turns := 0
 	schemaRetries := 0
@@ -91,36 +121,26 @@ func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult
 		if turns > maxPhaseTurns {
 			return nil, fmt.Errorf("phase %s: exceeded turn limit (%d)", phase, maxPhaseTurns)
 		}
-		req := responseRequest{
-			Model:           r.Cfg.ModelID,
-			Instructions:    r.Spec.SystemPrompt,
-			Input:           input,
-			Tools:           r.Spec.ResponsesTools(),
-			Text:            Format(phase, schema),
-			MaxOutputTokens: r.Spec.MaxOutputTokens,
-			PreviousID:      prevID,
-		}
 		if violations != "" {
 			// Schema feedback replaces the task input on retry.
-			req.Input = []any{userText("Your previous output failed schema validation:\n" + violations + "\nReturn corrected JSON only.")}
-			req.PreviousID = prevID
+			st.applySchemaFeedback(violations)
 		}
-		resp, err := r.Cfg.CreateResponse(ctx, req)
+		start := time.Now()
+		turn, err := runTurn(ctx, st)
+		latency += time.Since(start)
 		if err != nil {
 			return nil, err
 		}
-		usage.InputTokens += resp.Usage.InputTokens
-		usage.OutputTokens += resp.Usage.OutputTokens
-		usage.TotalTokens += resp.Usage.TotalTokens
+		usage.InputTokens += turn.Usage.InputTokens
+		usage.OutputTokens += turn.Usage.OutputTokens
+		usage.TotalTokens += turn.Usage.TotalTokens
 		usage.Calls++
-		prevID = resp.ID
-		calls := resp.Calls()
-		if len(calls) > 0 {
+		if len(turn.Calls) > 0 {
 			if r.Exec == nil {
 				return nil, fmt.Errorf("model requested tools but no executor is configured")
 			}
-			var outs []any
-			for _, call := range calls {
+			var outs []toolOutput
+			for _, call := range turn.Calls {
 				if err := r.spend(phase); err != nil {
 					return nil, err
 				}
@@ -128,28 +148,30 @@ func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult
 				if err != nil {
 					result = `{"error":` + jsonString(err.Error()) + `}`
 				}
-				outs = append(outs, map[string]any{
-					"type":    "function_call_output",
-					"call_id": call.CallID,
-					"output":  result,
-				})
+				outs = append(outs, toolOutput{CallID: call.ID, Output: result})
 			}
-			input = outs
+			st.applyToolOutputs(outs)
 			violations = ""
 			schemaRetries = 0 // a tool turn breaks any schema-failure streak
 			continue
 		}
-		text := strings.TrimSpace(resp.Text())
-		if text == "" {
+		if turn.Text == "" {
 			return nil, fmt.Errorf("phase %s: empty model output", phase)
 		}
 		var v any
-		if err := json.Unmarshal([]byte(text), &v); err != nil {
+		if err := json.Unmarshal([]byte(turn.Text), &v); err != nil {
 			violations = "output is not valid JSON: " + err.Error()
 		} else if probs := ValidateSchema(schema, v); len(probs) > 0 {
 			violations = strings.Join(probs, "; ")
 		} else {
-			return &PhaseResult{Phase: phase, JSON: json.RawMessage(text), Usage: usage}, nil
+			return &PhaseResult{
+				Phase:    phase,
+				JSON:     json.RawMessage(turn.Text),
+				Usage:    usage,
+				ModelID:  route.ModelID,
+				Provider: route.Provider,
+				Latency:  latency,
+			}, nil
 		}
 		schemaRetries++
 		if schemaRetries > maxSchemaRetries {

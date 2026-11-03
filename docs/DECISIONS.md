@@ -1,5 +1,97 @@
 # Decisions
 
+## F1: Per-phase model routing and protocol adapter (2026-11-04)
+
+Per-phase routes (`HANDOFF_MODEL/PROVIDER/BASE_URL/KEY_ENV_<INTAKE|DEPENDENCY|
+DIAGNOSIS|REPAIR|ASSESSMENT|VERIFICATION>`) select a `meta-responses` or
+`openai-chat` provider behind one turn interface; defaults reproduce today's
+Spark 1.3 Responses behaviour for all phases. Structured output maps as
+`text.format` on Responses and `response_format` json_schema on chat-completions
+(chat rejects `text.format` with 400, per the docs); strict tool-call replay is
+kept on the chat path. Retry (429/5xx + Retry-After, 3 attempts), local schema
+validation, 2 schema retries, and fail-closed are shared code for both
+providers. Every phase log line now carries model ID, provider, tokens, and
+latency. Glimmer's native ATEM tool format is not spoken by the chat adapter —
+a parser-enabled runtime (vLLM `--tool-call-parser muse_glimmer`, SGLang,
+llama.cpp `--tool-parser atem`, Ollama) is required before F5 can rely on it.
+`reasoning_effort: max` is documented for wonder-1.3/spark-1.3 on Responses;
+the chat-completions parameter table lists only up to `xhigh`, so F3 pins Wonder
+repair to the Responses provider until `max`-over-chat is verified live.
+Per-phase keys come from a named env var (`HANDOFF_KEY_ENV_<...>`), never from
+the repo; Authorization values are never logged.
+
+## Video rebuild after first-viewer clarity review (2026-11-03)
+
+Use action-driven conceptual animation followed by continuous recorded app
+interactions, inspired by the inspected SIH/LATTICE, BIS, and Nextship films.
+Keep HandoffProof's original owl, website colors, square controls, Plus Jakarta
+Sans, and Phosphor icons. Independent owl gaze/blink/gesture motion guides the
+explanation. Local Zira narration and synchronized captions explain each action.
+Record real controller runs and real Slack/GitHub connections; date the earlier
+Meta diagnosis and retain its original evidence IDs. Label cut waiting time.
+Do not imply that GitHub creates PRs or that recovery occurred without a fresh
+controller-observed rerun. Keep the final film below three minutes.
+
+## Slack notifications and GitHub App access (2026-11-02)
+
+- Add opt-in notifications for terminal console demo/BYOA rehearsals, with a
+  failure-only filter and bounded delivery. Persist preferences outside the
+  repository beside the Slack store; keep last delivery status in memory. Do
+  not retry ambiguous deliveries or replay runs after restart. Notification
+  delivery never changes controller records. Disconnect clears preferences.
+- Share only outcome counts, up to six validated controller evidence IDs, and
+  measured manifest state. Remove free-text assertion names from manual Slack
+  posts to avoid leaking untrusted application content or triggering mentions.
+  Suppress URL-containing transport errors and refuse delivery redirects.
+- Add GitHub App installation selection for operators while preserving OAuth.
+  Verify installation ownership through App-authenticated endpoints, reject
+  suspended installations, mint installation tokens per operation, and request
+  only Contents/Metadata read permissions. Store only the installation ID in
+  the encrypted credential payload, never installation tokens or private keys.
+  GitHub App operators are trusted for all installations of the configured app;
+  this is a single-operator server, not a multi-tenant installation callback.
+- Paginate repository/installation lists, check branch existence before saving,
+  and refuse API redirects. GitHub App archive imports use installation tokens.
+  Blank import branches use the saved selection or the repository's actual
+  default branch. Reject malformed connection nonces rather than allowing a
+  cryptographic API panic.
+  Writes, automatic PR creation, slash commands, and Slack bot tokens are outside
+  this scope. No Meta API or runtime prompt changes.
+- API contracts checked against official documentation on 2026-11-02:
+  [GitHub JWT claims and RS256](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-json-web-token-jwt-for-a-github-app),
+  [GitHub App installation/token endpoints](https://docs.github.com/en/rest/apps/apps),
+  [Installation repositories](https://docs.github.com/en/rest/apps/installations),
+  [Branch access](https://docs.github.com/en/rest/branches/branches),
+  [Slack incoming webhooks](https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/).
+  GitHub REST requests pin API version `2026-03-10`; JWTs use a 60-second clock
+  allowance and expire nine minutes after issuance.
+
+## Owl-led film redesign (2026-11-02)
+
+- Retain the original yellow owl from `assets/characters_and_poses.svg` as Pip,
+  using transparent vector poses. Match the current landing page with charcoal
+  surfaces, application blue/purple, Plus Jakarta Sans, and Phosphor icons.
+- Use actual browser captures from the running app through a read-only local
+  capture proxy. Keep integration storage isolated and credentials server-side.
+  The film replays existing controller evidence; no new drill or connection is
+  implied. Baseline captures search the exact three evidence IDs shown beside
+  them. Capture timestamps preserve the observed interaction cadence.
+- Study Segue's explainer/scale films, the SAAP motion kit, and Nextship notes
+  for pacing, mascot guidance, diagrams, and camera motion. Keep this product's
+  assets, branding, and claims. The 165-second cut uses captioned explanations
+  and the existing credited music, without a voice-over.
+- Replace the previous green-recovery animation with an explicit limitation:
+  the stored assessment has matching acceptance hashes but no new controller
+  evidence ID for recovery. The earlier log-based claim of a green rerun does
+  not supply the evidence required for that on-screen outcome. The benchmark
+  remains labelled as one recorded demo evaluation with an unrun outsider arm.
+- Normalize browser frames before encoding to avoid timeline gaps when native
+  screenshot dimensions change. The final composition selects those original
+  capture frames by recorded timestamp, avoiding an OffthreadVideo cache error
+  encountered during full renders despite valid source timestamps. Render
+  1080p/30 with PNG intermediate frames, H.264 CRF 16, and AAC 320 kbps; retain
+  editable Remotion source and captions.
+
 ## UI layout and landing page (2026-11-02)
 
 - Settings uses equal summary cards, with dedicated Slack, GitHub, sharing, and

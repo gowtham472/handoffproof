@@ -177,36 +177,61 @@ func renderSystem(m map[string]json.RawMessage) (string, error) {
 	return b.String(), nil
 }
 
+// cleanProps strips the spec's per-property "required": false flags, which
+// are not valid JSON Schema (required must be an array); the wire rejects
+// them on both providers.
+func cleanProps(params map[string]any) map[string]any {
+	props := map[string]any{}
+	for k, v := range params {
+		if m, ok := v.(map[string]any); ok {
+			cp := map[string]any{}
+			for mk, mv := range m {
+				if mk == "required" {
+					if _, isArr := mv.([]any); !isArr {
+						continue
+					}
+				}
+				cp[mk] = mv
+			}
+			props[k] = cp
+		} else {
+			props[k] = v
+		}
+	}
+	return props
+}
+
 // ResponsesTools converts spec tools to Responses API function tools.
-// The spec writes per-property "required": false flags, which are not valid
-// JSON Schema (required must be an array); strip them for the wire.
 func (s *Spec) ResponsesTools() []map[string]any {
 	out := make([]map[string]any, 0, len(s.Tools))
 	for _, t := range s.Tools {
-		props := map[string]any{}
-		for k, v := range t.Parameters {
-			if m, ok := v.(map[string]any); ok {
-				cp := map[string]any{}
-				for mk, mv := range m {
-					if mk == "required" {
-						if _, isArr := mv.([]any); !isArr {
-							continue
-						}
-					}
-					cp[mk] = mv
-				}
-				props[k] = cp
-			} else {
-				props[k] = v
-			}
-		}
 		out = append(out, map[string]any{
 			"type":        "function",
 			"name":        t.Name,
 			"description": t.Description,
 			"parameters": map[string]any{
 				"type":       "object",
-				"properties": props,
+				"properties": cleanProps(t.Parameters),
+			},
+		})
+	}
+	return out
+}
+
+// ChatTools converts the same flat spec tools to OpenAI-compatible
+// chat-completions function tools.
+func (s *Spec) ChatTools() []map[string]any {
+	out := make([]map[string]any, 0, len(s.Tools))
+	for _, t := range s.Tools {
+		out = append(out, map[string]any{
+			"type": "function",
+			"function": map[string]any{
+				"name":        t.Name,
+				"description": t.Description,
+				"parameters": map[string]any{
+					"type":       "object",
+					"properties": cleanProps(t.Parameters),
+				},
 			},
 		})
 	}

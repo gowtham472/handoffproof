@@ -140,7 +140,22 @@ func agentRunner(root, repo string, ev *memEvidence, ctrl *controller.Controller
 	if p := os.Getenv("HANDOFFPROOF_OWNERSHIP_FILE"); p != "" {
 		exec.Ownership = p
 	}
-	return agent.NewRunner(cfg, spec, exec), nil
+	router, err := agent.RouterFromEnv(cfg)
+	if err != nil {
+		return nil, err
+	}
+	runner := agent.NewRunner(cfg, spec, exec)
+	runner.Router = &router
+	return runner, nil
+}
+
+// logPhase writes the per-phase evidence log line: model ID, provider kind,
+// token usage and latency travel with every phase result.
+func logPhase(phase string, res *agent.PhaseResult) {
+	fmt.Printf("--- %s (model=%s provider=%s tokens in=%d out=%d total=%d latency=%s) ---\n%s\n",
+		phase, res.ModelID, res.Provider,
+		res.Usage.InputTokens, res.Usage.OutputTokens, res.Usage.TotalTokens,
+		res.Latency.Round(time.Millisecond), res.JSON)
 }
 
 // loadEvidenceStore reads every persisted drill record for tool access.
@@ -232,7 +247,7 @@ func cmdScan(ctx context.Context, root string, args []string) error {
 		if err != nil {
 			return fmt.Errorf("phase %s: %w", phase, err)
 		}
-		fmt.Printf("--- %s (tokens in=%d out=%d total=%d) ---\n%s\n", phase, res.Usage.InputTokens, res.Usage.OutputTokens, res.Usage.TotalTokens, res.JSON)
+		logPhase(phase, res)
 	}
 	return nil
 }
@@ -288,7 +303,7 @@ func cmdDrill(ctx context.Context, root string, args []string) error {
 	if err := os.WriteFile(out, res.JSON, 0o644); err != nil {
 		return err
 	}
-	fmt.Printf("--- diagnosis (tokens in=%d out=%d total=%d) ---\n%s\n", res.Usage.InputTokens, res.Usage.OutputTokens, res.Usage.TotalTokens, res.JSON)
+	logPhase("diagnosis", res)
 	fmt.Fprintln(os.Stderr, "diagnosis:", out)
 	if !*full {
 		return nil
@@ -308,7 +323,7 @@ func runRepairLoop(ctx context.Context, root string, ctrl *controller.Controller
 	if err != nil {
 		return fmt.Errorf("repair proposal: %w", err)
 	}
-	fmt.Printf("--- repair_proposal (tokens total=%d) ---\n%s\n", repRes.Usage.TotalTokens, repRes.JSON)
+	logPhase("repair_proposal", repRes)
 	var rep struct {
 		Repairs []struct {
 			ID    string  `json:"repair_id"`
@@ -368,7 +383,7 @@ func runRepairLoop(ctx context.Context, root string, ctrl *controller.Controller
 	if err := os.WriteFile(out, assRes.JSON, 0o644); err != nil {
 		return err
 	}
-	fmt.Printf("--- assessment (tokens total=%d) ---\n%s\n", assRes.Usage.TotalTokens, assRes.JSON)
+	logPhase("assessment", assRes)
 	fmt.Fprintln(os.Stderr, "assessment:", out)
 	return nil
 }
@@ -422,7 +437,7 @@ func cmdVerify(ctx context.Context, root string, args []string) error {
 	if err := os.WriteFile(out, res.JSON, 0o644); err != nil {
 		return err
 	}
-	fmt.Printf("--- verification (tokens total=%d) ---\n%s\n", res.Usage.TotalTokens, res.JSON)
+	logPhase("verification", res)
 	fmt.Fprintln(os.Stderr, "verification:", out)
 	return nil
 }

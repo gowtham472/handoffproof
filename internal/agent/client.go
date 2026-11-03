@@ -145,22 +145,37 @@ func (c Config) CreateResponse(ctx context.Context, req responseRequest) (*Respo
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
-	hc := c.HTTP
+	raw, err := postJSON(ctx, c.HTTP, c.BaseURL+"/responses", c.APIKey, req)
+	if err != nil {
+		return nil, err
+	}
+	var out Response
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("parse response: %w", err)
+	}
+	return &out, nil
+}
+
+// postJSON posts a JSON payload with retry on 429 and 5xx, honoring
+// Retry-After, and returns the raw success body. It never retries 4xx
+// validation errors. Both providers share it so retry and fail-closed
+// behaviour stay identical.
+func postJSON(ctx context.Context, hc *http.Client, url, apiKey string, payload any) ([]byte, error) {
 	if hc == nil {
 		hc = &http.Client{Timeout: 120 * time.Second}
 	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
-		raw, err := json.Marshal(req)
-		if err != nil {
-			return nil, err
-		}
-		hreq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/responses", bytes.NewReader(raw))
+		hreq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(raw))
 		if err != nil {
 			return nil, err
 		}
 		hreq.Header.Set("content-type", "application/json")
-		hreq.Header.Set("authorization", "Bearer "+c.APIKey)
+		hreq.Header.Set("authorization", "Bearer "+apiKey)
 		res, err := hc.Do(hreq)
 		if err != nil {
 			return nil, fmt.Errorf("meta api request: %w", err)
@@ -171,11 +186,7 @@ func (c Config) CreateResponse(ctx context.Context, req responseRequest) (*Respo
 			return nil, err
 		}
 		if res.StatusCode >= 200 && res.StatusCode < 300 {
-			var out Response
-			if err := json.Unmarshal(body, &out); err != nil {
-				return nil, fmt.Errorf("parse response: %w", err)
-			}
-			return &out, nil
+			return body, nil
 		}
 		apiErr := parseAPIError(res.StatusCode, body)
 		lastErr = apiErr
