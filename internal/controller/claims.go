@@ -42,6 +42,27 @@ type ClaimVerdict struct {
 	EvidenceIDs  []string    `json:"evidence_ids"`
 	Detail       string      `json:"detail"`
 	NeedsRunbook bool        `json:"needs_runbook"`
+	// Asserts records how a config or backup claim was read: "gap" when
+	// the statement says something is missing, undocumented or untested,
+	// "ok" otherwise. The status is checked against that reading.
+	Asserts string `json:"asserts,omitempty"`
+}
+
+// gapMarkers match statements asserting a gap. Reading is deterministic on
+// the claim text; a double negative ("no gaps") reads as a gap, a known
+// limit of keyword reading.
+var gapMarkers = regexp.MustCompile(`(?i)\b(not|never|no|none|nobody|nothing|undocumented|untested|unknown|missing|absent|without|cannot|fails?|failed|broken|lost)\b|n't\b`)
+
+// assertsGap reports whether a claim statement asserts a gap.
+func assertsGap(statement string) bool {
+	return gapMarkers.MatchString(statement)
+}
+
+func assertsLabel(gap bool) string {
+	if gap {
+		return "gap"
+	}
+	return "ok"
 }
 
 // injectionMarkers matches the repo's known prompt-injection tells. Claims
@@ -140,33 +161,66 @@ func verifyOne(c Claim, repoRoot string, dead, live, backupFailed, backupPassed 
 	case "credential_location":
 		return verifyCredential(c, repoRoot, dead, live)
 	case "backup":
-		if len(backupFailed) > 0 {
-			return ClaimVerdict{ClaimID: c.ID, Status: ClaimConfirmed,
-				EvidenceIDs: recordIDs(backupFailed),
-				Detail:      "incomplete-backup drill evidence shows the gap; restore was not demonstrated"}
-		}
-		if len(backupPassed) > 0 {
-			return ClaimVerdict{ClaimID: c.ID, Status: ClaimContradicted,
-				EvidenceIDs: recordIDs(backupPassed),
-				Detail:      "incomplete-backup drill passed with a restore attempt on record"}
-		}
-		return ClaimVerdict{ClaimID: c.ID, Status: ClaimUnverified,
-			Detail: "no incomplete-backup drill evidence for this claim"}
+		return verifyBackup(c, backupFailed, backupPassed)
 	case "config":
-		if !used[c.Subject] {
-			return ClaimVerdict{ClaimID: c.ID, Status: ClaimUnverified,
-				Detail: "env name " + c.Subject + " appears neither in code nor in docs"}
-		}
-		if !documented[c.Subject] {
-			return ClaimVerdict{ClaimID: c.ID, Status: ClaimConfirmed,
-				Detail: "static scan: " + c.Subject + " is used in code but undocumented"}
-		}
-		return ClaimVerdict{ClaimID: c.ID, Status: ClaimContradicted,
-			Detail: "static scan: " + c.Subject + " is used and documented; no gap"}
+		return verifyConfig(c, used, documented)
 	default:
 		return ClaimVerdict{ClaimID: c.ID, Status: ClaimUnverified, NeedsRunbook: true,
 			Detail: "type " + c.Type + " has no drill or scan check; needs a written runbook"}
 	}
+}
+
+// verifyBackup checks a backup claim against incomplete-backup drill
+// evidence in the direction the claim asserts.
+func verifyBackup(c Claim, failed, passed []evidence.Record) ClaimVerdict {
+	gap := assertsGap(c.Statement)
+	v := ClaimVerdict{ClaimID: c.ID, Asserts: assertsLabel(gap)}
+	switch {
+	case len(failed) > 0:
+		v.EvidenceIDs = recordIDs(failed)
+		v.Status = ClaimContradicted
+		v.Detail = "incomplete-backup drill evidence shows a gap: restore was not demonstrated"
+		if gap {
+			v.Status = ClaimConfirmed
+			v.Detail = "incomplete-backup drill evidence shows the gap; restore was not demonstrated"
+		}
+	case len(passed) > 0:
+		v.EvidenceIDs = recordIDs(passed)
+		v.Status = ClaimConfirmed
+		v.Detail = "incomplete-backup drill passed with a restore attempt on record"
+		if gap {
+			v.Status = ClaimContradicted
+		}
+	default:
+		v.Status = ClaimUnverified
+		v.Detail = "no incomplete-backup drill evidence for this claim"
+	}
+	return v
+}
+
+// verifyConfig checks a config claim against static-scan usage and
+// documentation of the env name, in the direction the claim asserts.
+func verifyConfig(c Claim, used, documented map[string]bool) ClaimVerdict {
+	gap := assertsGap(c.Statement)
+	v := ClaimVerdict{ClaimID: c.ID, Asserts: assertsLabel(gap)}
+	if !used[c.Subject] {
+		v.Status = ClaimUnverified
+		v.Detail = "env name " + c.Subject + " appears neither in code nor in docs"
+		return v
+	}
+	if documented[c.Subject] {
+		v.Detail = "static scan: " + c.Subject + " is used and documented"
+	} else {
+		v.Detail = "static scan: " + c.Subject + " is used in code but undocumented"
+	}
+	// The claim holds when its reading matches the scan: a gap claim
+	// needs the name undocumented, an ok claim needs it documented.
+	if gap != documented[c.Subject] {
+		v.Status = ClaimConfirmed
+	} else {
+		v.Status = ClaimContradicted
+	}
+	return v
 }
 
 func verifyCredential(c Claim, repoRoot string, dead, live []evidence.Record) ClaimVerdict {

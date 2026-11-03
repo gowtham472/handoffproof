@@ -1,5 +1,26 @@
 # Decisions
 
+## Claim polarity in controller verification (2026-11-04)
+
+Decision: `internal/controller/claims.go` reads, from the claim statement,
+whether a config or backup claim asserts a gap (word-bounded markers: not,
+never, no, missing, undocumented, untested, ...; or a "n't" contraction) or
+the positive case, records it as `asserts: gap|ok` on the verdict, and
+confirms the claim only when the evidence matches that reading. Config: a gap
+claim holds when the env name is used but undocumented; an ok claim holds when
+it is documented. Backup: a gap claim holds when the incomplete-backup drill
+failed; an ok claim holds when it passed. Options considered: a
+model-proposed `asserts` field in the claim schema — rejected, it would let
+model output steer a verdict and would need a prompt change and live
+re-measurement; keeping the old rule — rejected, it marked true claims
+contradicted. Limits: keyword reading treats a double negative ("no gaps") as
+a gap claim; credential claims are unchanged. The F4 test fixture C3 now says
+"The API key is not documented anywhere" (false in that workspace, so still
+contradicted) because the old statement was true and is now confirmed. The F7
+run was re-verified without model calls (`whiteboard --reverify`):
+DATABASE_URL "documented in the README" moved from contradicted to confirmed.
+Earlier interview records keep the verdicts they were written with.
+
 ## F6 + F7: profile auto-drafter and whiteboard claims (2026-11-04)
 
 F6 decision: `handoffproof draft --app-dir DIR --env-file F [--reps N]` runs one

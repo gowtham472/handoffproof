@@ -343,9 +343,10 @@ Meta model roles (numbers come only from [docs/RESULTS.md](docs/RESULTS.md), gen
   generated the fixture, which is labelled synthetic. One live run: 1 screen pixelated, the fake
   key on it never reached any record, the injected note was dropped, and 4 claims were verified.
   This shows the pipeline works on one image, not general accuracy.
-- Known limit: the controller's config and backup claim checks ignore what a claim asserts
-  ("X is documented" is checked as if it said "X is undocumented"), so a true claim can show
-  as contradicted. This affects the Exit Interview and the whiteboard alike.
+- Claim polarity: the controller reads whether a config or backup claim asserts a gap
+  ("not documented", "never tested") or the positive case, and checks the evidence in that
+  direction. The reading uses keywords on the claim text, so a double negative such as
+  "no gaps" is read as a gap claim.
 
 Deploying for real users — HTTPS, environment, integrations, operations, and
 troubleshooting — is covered in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
