@@ -42,7 +42,7 @@ func main() {
 	case "verify":
 		err = cmdVerify(ctx, root, os.Args[2:])
 	case "eval":
-		err = cmdEval(root, os.Args[2:])
+		err = cmdEval(ctx, root, os.Args[2:])
 	case "pr":
 		err = cmdPR(ctx, root, os.Args[2:])
 	case "score":
@@ -149,13 +149,36 @@ func agentRunner(root, repo string, ev *memEvidence, ctrl *controller.Controller
 	return runner, nil
 }
 
-// logPhase writes the per-phase evidence log line: model ID, provider kind,
-// token usage and latency travel with every phase result.
-func logPhase(phase string, res *agent.PhaseResult) {
-	fmt.Printf("--- %s (model=%s provider=%s tokens in=%d out=%d total=%d latency=%s) ---\n%s\n",
+// repairPhaseTimeout bounds the wall-clock time of one repair-proposal run.
+// Steps (tool budget, turn cap), output tokens (spec max) and schema retries
+// are capped by the agent loop; the loop has no sub-agent fan-out: one
+// Runner executes local tools directly.
+const repairPhaseTimeout = 10 * time.Minute
+
+// repairScopedRunner returns a copy of r scoped to the repair phase.
+// submit_repair is unwired because the controller applies the proposal diff
+// itself and reruns the suite; the repair agent keeps read-only file tools
+// (secret paths stay denied) while config, spec and router are preserved.
+func repairScopedRunner(r *agent.Runner) *agent.Runner {
+	execCopy := *r.Exec
+	execCopy.Repairs = nil
+	out := agent.NewRunner(r.Cfg, r.Spec, &execCopy)
+	out.Router = r.Router
+	return out
+}
+
+// logPhaseFormat renders the per-phase evidence log line: model ID,
+// provider kind, token usage and latency travel with every phase result.
+func logPhaseFormat(phase string, res *agent.PhaseResult) string {
+	return fmt.Sprintf("--- %s (model=%s provider=%s tokens in=%d out=%d total=%d latency=%s) ---",
 		phase, res.ModelID, res.Provider,
 		res.Usage.InputTokens, res.Usage.OutputTokens, res.Usage.TotalTokens,
-		res.Latency.Round(time.Millisecond), res.JSON)
+		res.Latency.Round(time.Millisecond))
+}
+
+// logPhase writes the per-phase evidence log line.
+func logPhase(phase string, res *agent.PhaseResult) {
+	fmt.Printf("%s\n%s\n", logPhaseFormat(phase, res), res.JSON)
 }
 
 // loadEvidenceStore reads every persisted drill record for tool access.
@@ -316,7 +339,9 @@ func cmdDrill(ctx context.Context, root string, args []string) error {
 func runRepairLoop(ctx context.Context, root string, ctrl *controller.Controller, runner *agent.Runner, drill string, before []evidence.Record, diagnosis json.RawMessage) error {
 	hashBefore := manifestHash(root)
 	verifyBefore := ctrl.ManifestVerify(ctx)
-	repRes, err := runner.RunPhase(ctx, "repair_proposal",
+	repCtx, repCancel := context.WithTimeout(ctx, repairPhaseTimeout)
+	defer repCancel()
+	repRes, err := repairScopedRunner(runner).RunPhase(repCtx, "repair_proposal",
 		"Propose the smallest repair for these findings. Prefer documentation/configuration. "+
 			"Return repair_proposal JSON only; do not call submit_repair (the controller applies and reruns). "+
 			"Diff paths must be prefixed with app/ (the sandbox copy root). Declare human-only actions as human_action_required.\nDiagnosis:\n"+string(diagnosis))
