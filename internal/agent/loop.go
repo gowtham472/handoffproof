@@ -43,6 +43,11 @@ type Runner struct {
 	// per-run retry/turn metrics instead of estimating from token headers.
 	SchemaRetries int
 	ToolTurns     int
+	// Mode labels results with the private mode ("" means off).
+	Mode string
+	// SourceLocalOnly denies source-reading tools to any phase whose route
+	// is not a loopback endpoint (hybrid private mode).
+	SourceLocalOnly bool
 }
 
 type budget struct {
@@ -73,6 +78,8 @@ type PhaseResult struct {
 	ModelID  string
 	Provider string
 	Latency  time.Duration
+	// Mode is the private mode the phase ran under ("" means off).
+	Mode string
 }
 
 var phaseCalls = 40  // max_tool_calls_per_phase
@@ -115,6 +122,12 @@ func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult
 	if err != nil {
 		return nil, err
 	}
+	exec := r.Exec
+	if r.SourceLocalOnly && exec != nil && !IsLoopbackURL(route.BaseURL) {
+		denied := *exec
+		denied.DenySource = true
+		exec = &denied
+	}
 	st := newTurnState(route, r.Spec, schema, phase, task, r.Spec.MaxOutputTokens, r.Cfg.HTTP)
 	var usage UsageTotal
 	var latency time.Duration
@@ -142,7 +155,7 @@ func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult
 		usage.Calls++
 		if len(turn.Calls) > 0 {
 			r.ToolTurns++
-			if r.Exec == nil {
+			if exec == nil {
 				return nil, fmt.Errorf("model requested tools but no executor is configured")
 			}
 			var outs []toolOutput
@@ -150,7 +163,7 @@ func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult
 				if err := r.spend(phase); err != nil {
 					return nil, err
 				}
-				result, err := r.Exec.Execute(ctx, call.Name, call.Arguments)
+				result, err := exec.Execute(ctx, call.Name, call.Arguments)
 				if err != nil {
 					result = `{"error":` + jsonString(err.Error()) + `}`
 				}
@@ -177,6 +190,7 @@ func (r *Runner) RunPhase(ctx context.Context, phase, task string) (*PhaseResult
 				ModelID:  route.ModelID,
 				Provider: route.Provider,
 				Latency:  latency,
+				Mode:     r.Mode,
 			}, nil
 		}
 		schemaRetries++

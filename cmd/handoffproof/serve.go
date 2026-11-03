@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -19,9 +20,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gowtham472/handoffproof/internal/agent"
 	"github.com/gowtham472/handoffproof/internal/controller"
 	"github.com/gowtham472/handoffproof/internal/drills"
 	"github.com/gowtham472/handoffproof/internal/evidence"
+	"github.com/gowtham472/handoffproof/internal/privatemode"
 	"github.com/gowtham472/handoffproof/internal/scan"
 	"github.com/gowtham472/handoffproof/internal/score"
 
@@ -246,6 +249,36 @@ func (s *server) evidenceFiles() []string {
 // interviewLatest serves the newest redacted exit-interview record, or a
 // none marker when no interview has run. Stored records are redacted at
 // write time; nothing here decrypts or rehydrates secrets.
+// privateModeStatus reports the private mode for the Control Room badge:
+// mode, local endpoint host, model and the phases kept local. Keys never
+// leave the server.
+func privateModeStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, 405, map[string]string{"error": "method not allowed"})
+		return
+	}
+	mode, local, err := privateModeFromEnv()
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": err.Error()})
+		return
+	}
+	out := map[string]any{"mode": mode, "local_phases": []string{}}
+	if mode != privatemode.Off {
+		phases := privatemode.HybridLocalPhases
+		if mode == privatemode.Local {
+			phases = agent.Phases
+		}
+		host := local.BaseURL
+		if u, err := url.Parse(local.BaseURL); err == nil {
+			host = u.Host
+		}
+		out["local_phases"] = phases
+		out["endpoint_host"] = host
+		out["model"] = local.ModelID
+	}
+	writeJSON(w, 200, out)
+}
+
 func (s *server) interviewLatest(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSON(w, 405, map[string]string{"error": "method not allowed"})
@@ -427,6 +460,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/api/whatif", s.whatif)
 	mux.HandleFunc("/api/drills/run", s.runDrill)
 	mux.HandleFunc("/api/interview/latest", s.interviewLatest)
+	mux.HandleFunc("/api/private-mode", privateModeStatus)
 	mux.HandleFunc("/api/applications", s.applications)
 	mux.HandleFunc("/api/applications/", s.applicationByID)
 	mux.HandleFunc("/api/jobs/", func(w http.ResponseWriter, r *http.Request) {

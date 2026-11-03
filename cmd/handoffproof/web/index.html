@@ -35,6 +35,7 @@
   .header-name b { font-weight: 700; margin-right: 7px; }
   .header-name span { color: var(--text-2); }
   .header-actions { margin-left: auto; display: flex; height: 100%; align-items: center; }
+  #privbadge { align-self: center; margin: 0 4px; }
   .header-status { display: flex; align-items: center; gap: 8px; padding: 0 16px; font-size: .8rem; color: var(--text-2); white-space: nowrap; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: #24a148; flex: none; }
   .sidenav { position: fixed; top: 48px; bottom: 0; left: 0; width: 256px; z-index: 40; overflow-y: auto; background: var(--layer); border-right: 1px solid var(--border); padding: 16px 0; }
@@ -327,6 +328,7 @@
   <a class="header-name" href="#start"><b>HandoffProof</b><span>Control Room</span></a>
   <div class="header-actions">
     <a class="header-link" href="#settings" data-page-link="settings"><svg class="ic"><use href="/landing/phosphor.svg#i-filter"/></svg>Settings</a>
+    <span class="tag pass" id="privbadge" hidden title=""></span>
     <span class="header-status"><span class="dot"></span><span id="hdr">loading…</span></span>
   </div>
 </header>
@@ -1456,7 +1458,16 @@ async function loadDiag() {
 }
 
 renderDrills(false);
-Promise.all([loadSummary(), loadEvidence(), loadScore(), loadDiag(), loadWhatif(), loadHandoverScore(), loadSettings(), loadApplications()]).catch(e => { $('hdr').textContent = 'load error: ' + e.message; });
+async function loadPrivateMode() {
+  const pm = await getJSON('/api/private-mode');
+  const b = $('privbadge');
+  if (pm.mode === 'off') { b.hidden = true; return; }
+  b.textContent = pm.mode === 'local' ? 'Private mode: local' : 'Private mode: hybrid';
+  b.title = 'Source-reading phases run on ' + pm.endpoint_host + ' (' + pm.model + '): ' + pm.local_phases.join(', ') +
+    (pm.mode === 'local' ? '. Non-loopback egress is refused.' : '. Cloud phases see evidence only.');
+  b.hidden = false;
+}
+Promise.all([loadSummary(), loadEvidence(), loadScore(), loadDiag(), loadWhatif(), loadHandoverScore(), loadSettings(), loadApplications(), loadPrivateMode()]).catch(e => { $('hdr').textContent = 'load error: ' + e.message; });
 </script>
 </body>
 </html>

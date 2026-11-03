@@ -2,6 +2,8 @@ package agent
 
 import (
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -139,4 +141,23 @@ func (p PhaseRoute) validate(phase string) error {
 		return fmt.Errorf("phase %s: unknown provider kind %q (want %q or %q)",
 			phase, p.Provider, ProviderMetaResponses, ProviderOpenAIChat)
 	}
+}
+
+// IsLoopbackURL reports whether rawURL targets this machine (localhost or a
+// loopback IP). Private mode uses it to keep source-reading traffic local.
+func IsLoopbackURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return IsLoopbackHost(u.Hostname())
+}
+
+// IsLoopbackHost reports whether host is localhost or a loopback IP.
+func IsLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }

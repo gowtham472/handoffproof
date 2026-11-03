@@ -45,6 +45,17 @@ type Executor struct {
 	// and returns its reference. It can never grant ownership: the tool
 	// only ever reports the request as pending a human decision.
 	OnOwnershipRequest func(resource string) (string, error)
+	// DenySource refuses every tool that reads application source. Hybrid
+	// private mode sets it for phases routed to a non-local endpoint.
+	DenySource bool
+}
+
+// sourceTools read application source from the workspace.
+var sourceTools = map[string]bool{
+	"list_files":         true,
+	"read_file":          true,
+	"search_code":        true,
+	"static_scan_report": true,
 }
 
 // Execute runs one tool call and returns its JSON result text.
@@ -57,6 +68,9 @@ func (e *Executor) Execute(ctx context.Context, name string, argsJSON string) (s
 	}
 	if args == nil {
 		args = map[string]any{}
+	}
+	if e.DenySource && sourceTools[name] {
+		return "", fmt.Errorf("tool %s: source access denied (private mode: this phase runs on a non-local endpoint and sees evidence only)", name)
 	}
 	var out any
 	var err error

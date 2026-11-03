@@ -1,5 +1,38 @@
 # Decisions
 
+## F5: Private mode with Muse Glimmer (2026-11-03)
+
+Decision: `HANDOFF_PRIVATE_MODE=off|local|hybrid` on top of the F1 router, in a
+new unprotected package `internal/privatemode`. Local: every phase routes to the
+loopback Glimmer endpoint and the HTTP client is wrapped in a guard that refuses
+non-loopback hosts before dialing (logged as `security event:
+private_mode_egress_blocked`). Hybrid: intake_summary, dependency_map and
+diagnosis go local; any phase whose route is not loopback runs with
+`Executor.DenySource` (list_files/read_file/search_code/static_scan_report
+refused). Every phase log line now carries `mode=`; the Control Room shows a
+"Private mode" badge from `/api/private-mode` (no key returned).
+Options considered: (a) a mode field in controller evidence records — rejected:
+drill records are model-independent and `internal/evidence` is protected, so the
+mode is recorded in the agent's per-phase evidence log line instead; (b) a
+separate executor wrapper in `cmd` — rejected: every call site would change,
+while one per-phase copy in `RunPhase` covers them all; (c) only rewriting
+routes without a transport guard — rejected: a stray caller (e.g. transcription)
+could still leak, so local mode guards the client too.
+Verified on dev.meta.ai (2026-11-03): Ollama tag `muse-glimmer` (Ollama
+0.32.7+, OpenAI-compatible `/v1`); vLLM image `vllm/vllm-openai:muse-glimmer`
+with `--tool-call-parser muse_glimmer --reasoning-parser muse_glimmer
+--enable-auto-tool-choice`; llama.cpp build b10353+ selects the ATEM tool parser
+from the template. Hardware: bf16 about 72 GB VRAM to serve; quantized GGUF
+builds 17–20 GB; `KQuant-17GB-Q4_K_M` with vision projector and full 131,072
+context totals 19.0 GiB (fits a 24 GiB card); `Dynamic-Q4_K_XL` (19.7 GB) is the
+higher-quality, higher-memory option; Apple silicon needs 48 GB+ unified memory.
+The docs do not state structured-output (`response_format` json_schema) support
+for Glimmer, so schema conformance is unverified.
+Limits, stated plainly: hybrid cloud phases still receive model-written outputs
+of the local phases (secret-redacted, but they may paraphrase source); quality
+vs Spark is NOT measured — no local runtime or GPU on the build machine, so the
+F2 glimmer rows stay "not run" with the recorded reason.
+
 ## F2 follow-up: render-only regen (2026-11-04)
 
 `--models` always executed cells, so regenerating the table meant rerunning

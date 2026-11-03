@@ -18,6 +18,7 @@ import (
 	"github.com/gowtham472/handoffproof/internal/agent"
 	"github.com/gowtham472/handoffproof/internal/controller"
 	"github.com/gowtham472/handoffproof/internal/evidence"
+	"github.com/gowtham472/handoffproof/internal/privatemode"
 	"github.com/gowtham472/handoffproof/internal/report"
 	"github.com/gowtham472/handoffproof/internal/scan"
 )
@@ -103,7 +104,11 @@ func specPath(root string) string {
 }
 
 func agentRunner(root, repo string, ev *memEvidence, ctrl *controller.Controller, runTag string) (*agent.Runner, error) {
-	cfg := agent.ConfigFromEnv()
+	mode, local, err := privateModeFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	cfg := privatemode.Configure(agent.ConfigFromEnv(), mode, local, logBlockedEgress)
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -149,8 +154,26 @@ func agentRunner(root, repo string, ev *memEvidence, ctrl *controller.Controller
 		return nil, err
 	}
 	runner := agent.NewRunner(cfg, spec, exec)
-	runner.Router = &router
+	if err := privatemode.Wire(runner, &router, mode, local); err != nil {
+		return nil, err
+	}
 	return runner, nil
+}
+
+// privateModeFromEnv reads HANDOFF_PRIVATE_MODE and, unless it is off, the
+// local Glimmer route it needs. Misconfiguration fails closed.
+func privateModeFromEnv() (privatemode.Mode, agent.PhaseRoute, error) {
+	mode, err := privatemode.FromEnv()
+	if err != nil || mode == privatemode.Off {
+		return mode, agent.PhaseRoute{}, err
+	}
+	local, err := privatemode.LocalRoute()
+	return mode, local, err
+}
+
+// logBlockedEgress records a refused non-loopback request in local mode.
+func logBlockedEgress(host string) {
+	fmt.Fprintf(os.Stderr, "security event: private_mode_egress_blocked at %s (request refused)\n", host)
 }
 
 // repairPhaseTimeout bounds the wall-clock time of one repair-proposal run.
@@ -170,19 +193,31 @@ func repairScopedRunner(r *agent.Runner) *agent.Runner {
 	// Repair inputs are large and reasoning models are slow: allow five
 	// minutes per request inside the ten-minute phase cap. Fail-closed
 	// retry semantics are unchanged.
-	cfg.HTTP = &http.Client{Timeout: 5 * time.Minute}
+	// The transport is kept so the private-mode egress guard still applies.
+	var transport http.RoundTripper
+	if r.Cfg.HTTP != nil {
+		transport = r.Cfg.HTTP.Transport
+	}
+	cfg.HTTP = &http.Client{Timeout: 5 * time.Minute, Transport: transport}
 	out := agent.NewRunner(cfg, r.Spec, &execCopy)
 	out.Router = r.Router
+	out.Mode = r.Mode
+	out.SourceLocalOnly = r.SourceLocalOnly
 	return out
 }
 
 // logPhaseFormat renders the per-phase evidence log line: model ID,
-// provider kind, token usage and latency travel with every phase result.
+// provider kind, token usage, latency and private mode travel with every
+// phase result.
 func logPhaseFormat(phase string, res *agent.PhaseResult) string {
-	return fmt.Sprintf("--- %s (model=%s provider=%s tokens in=%d out=%d total=%d latency=%s) ---",
+	mode := res.Mode
+	if mode == "" {
+		mode = string(privatemode.Off)
+	}
+	return fmt.Sprintf("--- %s (model=%s provider=%s tokens in=%d out=%d total=%d latency=%s mode=%s) ---",
 		phase, res.ModelID, res.Provider,
 		res.Usage.InputTokens, res.Usage.OutputTokens, res.Usage.TotalTokens,
-		res.Latency.Round(time.Millisecond))
+		res.Latency.Round(time.Millisecond), mode)
 }
 
 // logPhase writes the per-phase evidence log line.

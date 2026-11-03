@@ -1,6 +1,31 @@
 # HandoffProof - 3-day build plan (Step 1)
 
-## F4: Exit Interview Verifier (2026-11-04, in progress — report+agent suites green, cmd suite blocked by policy)
+## F5: Private mode with Muse Glimmer (2026-11-03, code DONE — quality vs Spark not measured)
+
+`HANDOFF_PRIVATE_MODE=local|hybrid` (default off) routes source-reading phases
+to a loopback Glimmer endpoint via F1. Local mode guards the HTTP client
+(loopback only) and refuses cloud transcription; hybrid denies source tools to
+cloud-routed phases. Files: `internal/privatemode/` (new, unprotected, +test),
+`internal/agent/routing.go` (IsLoopbackURL/Host), `internal/agent/tools.go`
+(DenySource), `internal/agent/loop.go` (Mode, SourceLocalOnly, per-phase deny
+copy), `internal/agent/private_test.go` (new), `cmd/handoffproof/main.go`
+(wiring, `mode=` in the log line, repair runner keeps the guard),
+`cmd/handoffproof/interview.go`, `cmd/handoffproof/serve.go` (`/api/private-mode`),
+`cmd/handoffproof/web/index.html` (badge), `cmd/handoffproof/privatemode_test.go`
+(new), `.env.example`. Egress acceptance: `TestLocalModeNoEgressToMetaAPI`.
+Protected (awaiting manifest-refresh approval): `internal/agent/*`, `cmd/handoffproof/*`.
+Target, not result: Glimmer quality row in the F2 table (no local runtime here).
+F6/F7: not started (F7 is gated on F5 being measured, which it is not).
+
+## F4: Exit Interview Verifier (2026-11-04, DONE 2026-11-03 — cmd suite now executes and passes)
+
+Update 2026-11-03: Application Control no longer blocks the test binaries. The
+first real cmd run found a broken fake-server envelope in
+`TestInterviewOffline` (stray quote, `usage` outside the object); fixed in the
+test only. `go test ./cmd/handoffproof/` now passes, including
+TestInterviewOffline (C1/C2 confirmed, C3 contradicted, C5 unverifiable +
+needs runbook, injected C4 dropped), TestInterviewLatest*, and the F2/F3 tests.
+
 
 `handoffproof interview --audio h.wav [--transcript fixture.json]` transcribes
 (vocabulary biased from the scan), extracts claims via

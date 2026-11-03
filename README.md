@@ -318,6 +318,21 @@ Known limitations, stated plainly:
   hashes are stored, in `HANDOFF_SHARE_FILE` or the OS temp directory).
 - PDF export is the browser's print-to-PDF of the themed report, not a server-generated binary.
 
+Meta model roles (numbers come only from [docs/RESULTS.md](docs/RESULTS.md), generated from
+`evidence/eval`; 3 runs per cell on author-written fixtures):
+
+- **Muse Spark 1.3** runs all six agent phases by default and Exit Interview claim extraction;
+  measured: 6/6 runs OK, all planted faults caught, 0 false alarms, 0/6 first-try repair applies.
+- **Muse Wonder** handles repair proposals through per-phase routing (`HANDOFF_MODEL_REPAIR`);
+  measured: 6/6 runs OK, same detection, 1.4–1.7x Spark's tokens per run, 0/4 first-try applies.
+- **Muse Spark Open** is a benchmark profile via Together AI; not run (no `TOGETHER_API_KEY`).
+- **Muse Glimmer** powers private mode (`HANDOFF_PRIVATE_MODE=local|hybrid`); the no-egress
+  guarantee is tested, but quality versus Spark is not run (no local runtime on the build
+  machine), and Glimmer's structured-output support is not documented, so it is unverified.
+- **Muse Voice Transcribe** transcribes Exit Interview audio; tests use a fixture transcript,
+  and local private mode refuses it because it is a cloud API.
+- Not built: the BYOA profile auto-drafter and the image-knowledge pipeline (SAM 3.1, Muse Image).
+
 Deploying for real users — HTTPS, environment, integrations, operations, and
 troubleshooting — is covered in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
