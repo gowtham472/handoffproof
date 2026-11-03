@@ -15,6 +15,9 @@ test-results/
 # local preview servers, scratch scripts, and review captures
 /tmp/
 generated_images/*.lock
+# Film/video production sources stay local; the reviewed master and poster live in demo/.
+/film/
+/videos/
 # editor/os
 .DS_Store
 Thumbs.db
