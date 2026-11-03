@@ -479,6 +479,12 @@
         <button class="page-btn" id="ev-last" type="button" aria-label="Last page">Last</button>
       </div>
     </div>
+    <section class="tile" aria-labelledby="interview-title" style="margin-top:16px">
+      <h2 id="interview-title"><svg class="ic"><use href="/landing/phosphor.svg#i-mic"/></svg>Exit interview</h2>
+      <p class="muted small">Departing-developer claims checked against drill evidence and the static scan. Confirmed and contradicted rows cite evidence; unverifiable rows need a written runbook. Transcripts are stored redacted.</p>
+      <p class="muted small" id="interview-caption">Loading.</p>
+      <table style="margin-top:12px"><thead><tr><th>Status</th><th>Claim</th><th>Type</th><th>Speaker</th><th>Time</th><th>Evidence</th></tr></thead><tbody id="interview-claims"></tbody></table>
+    </section>
   </section>
 
   <!-- 04 INSIGHTS -->
@@ -892,6 +898,37 @@ async function loadEvidence() {
   if ([...$('ev-page-size').options].some(o => Number(o.value) === evidencePageSize)) $('ev-page-size').value = String(evidencePageSize);
   renderEvidence();
   renderStartSteps();
+  loadInterview();
+}
+function claimBadge(status) {
+  if (status === 'confirmed') return badge(true, 'confirmed', 'confirmed');
+  if (status === 'contradicted') return badge(false, 'contradicted', 'contradicted');
+  return '<span class="tag">unverifiable</span>';
+}
+async function loadInterview() {
+  let doc;
+  try {
+    doc = await getJSON('/api/interview/latest');
+  } catch (e) {
+    $('interview-caption').textContent = 'Interview service unavailable.';
+    $('interview-claims').innerHTML = '';
+    return;
+  }
+  if (!doc || doc.none) {
+    $('interview-caption').textContent = 'No exit interview recorded yet. Run handoffproof interview --audio handover.wav.';
+    $('interview-claims').innerHTML = '';
+    return;
+  }
+  const verdicts = {};
+  (doc.verdicts || []).forEach(v => { verdicts[v.claim_id] = v; });
+  const rows = (doc.claims_redacted || []).map(c => {
+    const v = verdicts[c.id] || {};
+    const ev = (v.evidence_ids || []).join(', ') || '-';
+    return '<tr><td>' + claimBadge(v.status) + '</td><td>' + esc(c.statement || '') + '<div class="muted small mono">' + esc(c.id || '') + ' · ' + esc(c.subject || '') + '</div></td><td>' + esc(c.type || '') + '</td><td>' + esc(c.speaker || '') + '</td><td class="mono">' + esc(c.timestamp || '') + '</td><td class="mono">' + esc(ev) + '</td></tr>';
+  });
+  $('interview-claims').innerHTML = rows.join('') || '<tr><td colspan="6" class="muted">No claims extracted.</td></tr>';
+  const dropped = (doc.dropped_injected_claim_ids || []).length;
+  $('interview-caption').textContent = 'Recorded ' + (doc.started_utc || '') + ' · model ' + (doc.model || '') + (dropped ? ' · ' + dropped + ' injected claim(s) ignored' : '');
 }
 function evidencePageNumbers(total, current) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);

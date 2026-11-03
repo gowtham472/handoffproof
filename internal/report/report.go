@@ -64,6 +64,21 @@ type Finding struct {
 	Confidence  float64
 }
 
+// InterviewClaim is one exit-interview claim with its deterministic status.
+type InterviewClaim struct {
+	ID, Speaker, Timestamp, Type, Subject, Statement, Status, Detail string
+	EvidenceIDs                                                      []string
+	NeedsRunbook                                                     bool
+}
+
+// InterviewSection carries the exit-interview panel. Statuses come from
+// drill evidence and the static scan, never from the model.
+type InterviewSection struct {
+	App, Model, Started string
+	Dropped             []string
+	Claims              []InterviewClaim
+}
+
 // Data is everything the report renders.
 type Data struct {
 	Title      string
@@ -75,6 +90,7 @@ type Data struct {
 	HashBefore string
 	HashAfter  string
 	HashMatch  bool
+	Interview  *InterviewSection
 }
 
 func classBadge(c evidence.Classification) string {
@@ -399,6 +415,16 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   </div>
 </div>
 </section>
+{{if .Interview}}<section class="section" id="interview">
+  <div class="section-head"><span class="section-icon"><svg class="ic"><use href="#i-doc"/></svg></span><div><h2>Exit interview</h2><p>Departing-developer claims checked against drill evidence and the static scan on {{redact .Interview.Started}} (model {{redact .Interview.Model}}). Confirmed and contradicted rows cite evidence; unverifiable rows need a written runbook. Transcripts are stored redacted.</p></div></div>
+  {{if .Interview.Dropped}}<p class="empty">{{len .Interview.Dropped}} injected claim(s) ignored and logged: {{redact (join .Interview.Dropped ", ")}}</p>{{end}}
+  <div class="table-wrap"><table><thead><tr><th>Status</th><th>Claim</th><th>Type</th><th>Speaker</th><th>Time</th><th>Evidence</th></tr></thead><tbody>
+  {{range .Interview.Claims}}<tr><td><span class="badge {{if eq .Status "confirmed"}}pass{{else if eq .Status "contradicted"}}fail{{else}}untested{{end}}">{{redact .Status}}</span></td>
+  <td>{{redact .Statement}}<div class="muted small mono">{{redact .ID}} · {{redact .Subject}}</div><div class="muted small">{{redact .Detail}}{{if .NeedsRunbook}} Needs a written runbook.{{end}}</div></td>
+  <td>{{redact .Type}}</td><td>{{redact .Speaker}}</td><td class="mono">{{redact .Timestamp}}</td><td class="mono">{{if .EvidenceIDs}}{{redact (join .EvidenceIDs ", ")}}{{else}}-{{end}}</td></tr>
+  {{else}}<tr><td colspan="6" class="empty">No claims extracted.</td></tr>{{end}}
+  </tbody></table></div>
+</section>{{end}}
 <section class="section" id="integrity">
   <div class="section-head"><span class="section-icon"><svg class="ic"><use href="#i-shield"/></svg></span><div><h2>Acceptance integrity</h2><p>Measured by the controller at render time - never asserted by the model.</p></div></div>
   <div class="integrity-grid">

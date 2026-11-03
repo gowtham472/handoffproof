@@ -44,6 +44,8 @@ func main() {
 		err = cmdVerify(ctx, root, os.Args[2:])
 	case "eval":
 		err = cmdEval(ctx, root, os.Args[2:])
+	case "interview":
+		err = cmdInterview(ctx, root, os.Args[2:])
 	case "pr":
 		err = cmdPR(ctx, root, os.Args[2:])
 	case "score":
@@ -580,6 +582,7 @@ func cmdReport(root string, args []string) error {
 	fs := flag.NewFlagSet("report", flag.ContinueOnError)
 	evPath := fs.String("evidence", "", "evidence JSON file")
 	diagPath := fs.String("diagnosis", "", "diagnosis JSON file (optional)")
+	interviewPath := fs.String("interview", "", "exit-interview JSON file (optional)")
 	outPath := fs.String("out", filepath.Join(root, "evidence", "report.html"), "output HTML")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -587,13 +590,13 @@ func cmdReport(root string, args []string) error {
 	if *evPath == "" {
 		return fmt.Errorf("--evidence is required")
 	}
-	return generateReport(root, *evPath, *diagPath, *outPath, true)
+	return generateReport(root, *evPath, *diagPath, *interviewPath, *outPath, true)
 }
 
 // generateReport builds the HTML report from an evidence file (and an
 // optional diagnosis file). Shared by the CLI and the console /report
 // handler so the served report is regenerated when evidence is newer.
-func generateReport(root, evPath, diagPath, outPath string, verbose bool) error {
+func generateReport(root, evPath, diagPath, interviewPath, outPath string, verbose bool) error {
 	recs, err := controller.ReadEvidence(evPath)
 	if err != nil {
 		return err
@@ -677,6 +680,49 @@ func generateReport(root, evPath, diagPath, outPath string, verbose bool) error 
 				d.Findings = append(d.Findings, v)
 			}
 		}
+	}
+	if interviewPath != "" {
+		raw, err := os.ReadFile(interviewPath)
+		if err != nil {
+			return err
+		}
+		var doc struct {
+			Started string   `json:"started_utc"`
+			App     string   `json:"app"`
+			Model   string   `json:"model"`
+			Dropped []string `json:"dropped_injected_claim_ids"`
+			Claims  []struct {
+				ID, Speaker, Timestamp, Type, Subject, Statement string
+			} `json:"claims_redacted"`
+			Verdicts []struct {
+				ClaimID      string   `json:"claim_id"`
+				Status       string   `json:"status"`
+				EvidenceIDs  []string `json:"evidence_ids"`
+				Detail       string   `json:"detail"`
+				NeedsRunbook bool     `json:"needs_runbook"`
+			} `json:"verdicts"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			return fmt.Errorf("parse interview: %w", err)
+		}
+		byID := map[string]int{}
+		sec := &report.InterviewSection{App: doc.App, Model: doc.Model, Started: doc.Started, Dropped: doc.Dropped}
+		for _, c := range doc.Claims {
+			sec.Claims = append(sec.Claims, report.InterviewClaim{
+				ID: c.ID, Speaker: c.Speaker, Timestamp: c.Timestamp, Type: c.Type,
+				Subject: c.Subject, Statement: c.Statement,
+			})
+			byID[c.ID] = len(sec.Claims) - 1
+		}
+		for _, v := range doc.Verdicts {
+			if i, ok := byID[v.ClaimID]; ok {
+				sec.Claims[i].Status = v.Status
+				sec.Claims[i].EvidenceIDs = v.EvidenceIDs
+				sec.Claims[i].Detail = v.Detail
+				sec.Claims[i].NeedsRunbook = v.NeedsRunbook
+			}
+		}
+		d.Interview = sec
 	}
 	f, err := os.Create(outPath)
 	if err != nil {

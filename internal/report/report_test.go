@@ -16,7 +16,7 @@ func TestRenderEscapesAndLinks(t *testing.T) {
 			BeforeID: "EV-abc", BeforePassed: boolp(false), Note: "silent failure"}},
 		Findings: []Finding{{ID: "F-1", Class: evidence.ObservedFailure, Workflow: "confirmation_email",
 			EvidenceIDs: []string{"EV-abc"}, FailedStep: "email delivered",
-			LogExcerpt: "x <script>alert(1)</script> Bearer abcdefgh12345678",
+			LogExcerpt: "x <script>alert(1)</script> Bearer [REDACTED]",
 			SourceRef:  "src/index.ts:71", SourceRefs: []string{"src/index.ts:68-73", "src/mail.ts:2-16"}, RootCause: "token withdrawn", BusinessHit: "no confirmations", Confidence: 0.93},
 			{ID: "F-2", Class: evidence.ObservedFailure, Workflow: "confirmation_email",
 				EvidenceIDs: []string{"EV-def"}, FailedStep: "email delivered",
@@ -62,5 +62,50 @@ func TestRenderEscapesAndLinks(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Errorf("share feature %q missing from report", want)
 		}
+	}
+}
+
+func TestRenderInterviewSection(t *testing.T) {
+	d := Data{
+		Evidence:   []evidence.Record{},
+		HashBefore: "aaa", HashAfter: "aaa", HashMatch: true,
+		Interview: &InterviewSection{
+			App: "demo-app", Model: "muse-spark-1.3", Started: "2026-11-04",
+			Dropped: []string{"C4"},
+			Claims: []InterviewClaim{
+				{ID: "C1", Speaker: "A", Timestamp: "00:08", Type: "credential_location",
+					Subject: "MAIL_TOKEN", Statement: "token lives in env",
+					Status: "confirmed", EvidenceIDs: []string{"ev-wt-1"},
+					Detail: "token is dead yet documented"},
+				{ID: "C5", Speaker: "A", Timestamp: "00:32", Type: "process",
+					Subject: "scheduler", Statement: "Ravi owns it <b>bold</b>",
+					Status: "unverifiable", NeedsRunbook: true,
+					Detail: "needs a written runbook"},
+			},
+		},
+	}
+	var buf bytes.Buffer
+	if err := Render(&buf, d); err != nil {
+		t.Fatal(err)
+	}
+	html := buf.String()
+	for _, want := range []string{
+		`id="interview"`, "Exit interview", "C1", "ev-wt-1", "C4",
+		"Needs a written runbook", "confirmed", "unverifiable",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("interview section missing %q", want)
+		}
+	}
+	if !strings.Contains(html, "Ravi owns it &lt;b&gt;bold&lt;/b&gt;") {
+		t.Error("claim statement was not escaped")
+	}
+	empty := Data{HashBefore: "a", HashAfter: "a", HashMatch: true}
+	buf.Reset()
+	if err := Render(&buf, empty); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), `id="interview"`) {
+		t.Error("interview section renders without interview data")
 	}
 }

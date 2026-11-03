@@ -1,5 +1,26 @@
 # HandoffProof - 3-day build plan (Step 1)
 
+## F4: Exit Interview Verifier (2026-11-04, in progress — report+agent suites green, cmd suite blocked by policy)
+
+`handoffproof interview --audio h.wav [--transcript fixture.json]` transcribes
+(vocabulary biased from the scan), extracts claims via
+`prompts/f4_claim_extraction.json`, drops injected claims with a log line,
+verifies deterministically, persists a redacted record to
+`evidence/interview-*.json`, prints a panel. Files:
+`internal/agent/transcribe.go` (+test), `prompts/f4_claim_extraction.json`
+(new, unprotected), `internal/controller/claims.go` (protected),
+`cmd/handoffproof/interview.go` (+test), `eval/fixtures/interview-transcript.json`
++ `interview-sample.wav`, Control Room claims panel (`serve.go`, `web/index.html`),
+HTML report interview section (`internal/report/report.go` +test). Verified by
+execution: report suite green (incl. TestRenderInterviewSection), agent suite
+green (incl. TestTranscribeFileDiarizedTurns/NoRetryOn400). Blocked: cmd suite
+(interview e2e, endpoint, F2/F3 tests) cannot execute — Windows Application
+Control denies all fresh test binaries; will rerun in an allow window. Then
+STOP for protected-path approval (cmd, controller, agent, report, prompts).
+Live benchmark for F2 complete (12/12 cells: spark13 6/6, wonder 6/6;
+spark-open/glimmer labelled not run with reasons); table regenerated via
+`eval --models ... --render-only` (renders from cell.json files only).
+
 ## F3: Wonder repair agent (2026-11-04, implemented — with F2 below)
 
 `HANDOFF_MODEL_REPAIR=muse-wonder-1.0` in `.env` routes repair_proposal to

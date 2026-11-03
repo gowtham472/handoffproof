@@ -23,6 +23,60 @@ func testServer(t *testing.T) *server {
 	}
 }
 
+func authedGet(s *server, h http.Handler, path string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req.AddCookie(&http.Cookie{Name: "hp_session", Value: s.tokenHash})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestInterviewLatestNone(t *testing.T) {
+	s := testServer(t)
+	h := s.routes()
+
+	rec := authedGet(s, h, "/api/interview/latest")
+	if rec.Code != 200 {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc["none"] != true {
+		t.Errorf("doc = %v, want none marker", doc)
+	}
+}
+
+func TestInterviewLatestServesNewest(t *testing.T) {
+	s := testServer(t)
+	evDir := filepath.Join(s.root, "evidence")
+	if err := os.MkdirAll(evDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	old := `{"started_utc":"2026-11-01","claims_redacted":[],"verdicts":[]}`
+	newer := `{"started_utc":"2026-11-04","model":"m","claims_redacted":[{"id":"C1"}],"verdicts":[]}`
+	if err := os.WriteFile(filepath.Join(evDir, "interview-20261101.json"), []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(evDir, "interview-20261104.json"), []byte(newer), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h := s.routes()
+
+	rec := authedGet(s, h, "/api/interview/latest")
+	if rec.Code != 200 {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc["redacted"] != true || doc["model"] != "m" {
+		t.Errorf("doc = %v, want newest redacted record", doc)
+	}
+}
+
 func TestConsoleRequiresAuth(t *testing.T) {
 	s := testServer(t)
 	h := s.routes()

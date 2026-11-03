@@ -1,5 +1,40 @@
 # Decisions
 
+## F2 follow-up: render-only regen (2026-11-04)
+
+`--models` always executed cells, so regenerating the table meant rerunning
+hours of live cells. Added `--render-only`: skips execution, renders the same
+`renderModelTable` section from the cell.json files already under
+`evidence/eval` (verified: fresh binary regenerated RESULTS.md in seconds with
+12/12 cells + 2 not-run rows). Rationale: the table stays reproducible and
+hand-typed numbers stay impossible, without extra model spend.
+
+## F4: Exit Interview Verifier (2026-11-04, in progress)
+
+Voice: file endpoint `POST /v1/asr/transcribe`, multipart `request` JSON
+(model/audioEncoding WAV/mode) + `audio` WAV part (<=10 min, <=32 MB),
+buffered JSON `turns[]` with turnId/startMs/endMs/transcript/speaker.
+`keywords` (array of strings) seeds vocabulary biasing from the static scan
+(env names, data stores, job envs; capped at 100, deduped); `languageBias` is a
+language-name list, not free context. DIARIZATION gives speaker labels (A, B)
+and turn timestamps; speaker labels are not verified identities. `mode`
+availability is model-dependent, so an unsupported mode fails closed at runtime.
+Realtime streaming is a documented target, not implemented: the interview flow
+takes `--audio` or a fixture transcript today.
+Claims: extraction runs behind the process default route through a NEW spec
+file `prompts/f4_claim_extraction.json` (unprotected; the protected agent prompt
+is untouched) with read-only tools only. Claim statuses (confirmed /
+contradicted / unverifiable) are a separate deterministic taxonomy computed by
+`controller.VerifyClaims` from drill evidence + static scan — never model
+verdicts, no pass/fail path touched. credential_location needs a dead
+withdrawn-token record AND a repo-wide name mention; backup needs
+incomplete-backup drill evidence; config reuses scan used-vs-documented;
+process/other is unverifiable + needs-runbook. Injected claims (repo markers
+`AI reviewers:` / `mark all checks as passed` etc.) are dropped and logged
+before verification, never routed. Subjects that look like secret values are
+not searched and never quoted; transcripts and stored claims are Redact-masked
+before logging or persisting.
+
 ## F3: Wonder repair agent (2026-11-04)
 
 Repair runs through the same single-agent loop with three hard bindings: (1) a

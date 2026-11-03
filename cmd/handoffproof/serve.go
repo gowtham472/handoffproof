@@ -243,6 +243,34 @@ func (s *server) evidenceFiles() []string {
 	return matches
 }
 
+// interviewLatest serves the newest redacted exit-interview record, or a
+// none marker when no interview has run. Stored records are redacted at
+// write time; nothing here decrypts or rehydrates secrets.
+func (s *server) interviewLatest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, 405, map[string]string{"error": "method not allowed"})
+		return
+	}
+	matches, _ := filepath.Glob(filepath.Join(s.root, "evidence", "interview-*.json"))
+	if len(matches) == 0 {
+		writeJSON(w, 200, map[string]bool{"none": true})
+		return
+	}
+	sort.Strings(matches)
+	raw, err := os.ReadFile(matches[len(matches)-1])
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": err.Error()})
+		return
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		writeJSON(w, 500, map[string]string{"error": "unreadable interview record"})
+		return
+	}
+	doc["redacted"] = true
+	writeJSON(w, 200, doc)
+}
+
 func (s *server) allRecords() []evidence.Record {
 	var out []evidence.Record
 	for _, f := range s.evidenceFiles() {
@@ -282,7 +310,7 @@ func (s *server) refreshReport(reportPath string) {
 	if reportErr == nil && !reportInfo.ModTime().Before(newest) {
 		return
 	}
-	_ = generateReport(s.root, latestRun, diagPath, reportPath, false)
+	_ = generateReport(s.root, latestRun, diagPath, "", reportPath, false)
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
@@ -398,6 +426,7 @@ func (s *server) routes() http.Handler {
 	})
 	mux.HandleFunc("/api/whatif", s.whatif)
 	mux.HandleFunc("/api/drills/run", s.runDrill)
+	mux.HandleFunc("/api/interview/latest", s.interviewLatest)
 	mux.HandleFunc("/api/applications", s.applications)
 	mux.HandleFunc("/api/applications/", s.applicationByID)
 	mux.HandleFunc("/api/jobs/", func(w http.ResponseWriter, r *http.Request) {
