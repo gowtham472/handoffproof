@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -163,7 +164,12 @@ const repairPhaseTimeout = 10 * time.Minute
 func repairScopedRunner(r *agent.Runner) *agent.Runner {
 	execCopy := *r.Exec
 	execCopy.Repairs = nil
-	out := agent.NewRunner(r.Cfg, r.Spec, &execCopy)
+	cfg := r.Cfg
+	// Repair inputs are large and reasoning models are slow: allow five
+	// minutes per request inside the ten-minute phase cap. Fail-closed
+	// retry semantics are unchanged.
+	cfg.HTTP = &http.Client{Timeout: 5 * time.Minute}
+	out := agent.NewRunner(cfg, r.Spec, &execCopy)
 	out.Router = r.Router
 	return out
 }
