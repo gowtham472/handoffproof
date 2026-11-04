@@ -1,0 +1,35 @@
+[
+  {
+    "evidence_id": "EV-65e1518f",
+    "run_id": "run-1793803072983958309",
+    "drill": "fresh_deployment_baseline",
+    "workflow": "registration",
+    "assertion": "user row exists after register",
+    "passed": true,
+    "log_ref": "",
+    "artifact_sha256": "b7b112bc3f2678e75e7260822577a2c2f146de6b42b6796c625e476ef6f71647",
+    "created_at": "2026-11-04T14:38:15.309422117Z"
+  },
+  {
+    "evidence_id": "EV-915408cd",
+    "run_id": "run-1793803072983958309",
+    "drill": "fresh_deployment_baseline",
+    "workflow": "booking",
+    "assertion": "booking row exists after booking",
+    "passed": true,
+    "log_ref": "",
+    "artifact_sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "created_at": "2026-11-04T14:38:16.180086876Z"
+  },
+  {
+    "evidence_id": "EV-78b1f7b0",
+    "run_id": "run-1793803072983958309",
+    "drill": "fresh_deployment_baseline",
+    "workflow": "confirmation_email",
+    "assertion": "exactly one confirmation email in sink",
+    "passed": true,
+    "log_ref": "",
+    "artifact_sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+    "created_at": "2026-11-04T14:38:16.614288466Z"
+  }
+]

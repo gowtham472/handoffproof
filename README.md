@@ -19,7 +19,7 @@ A team needs to know what breaks when its developer leaves.<br>
 HandoffProof rehearses handover faults and records which workflows still work.<br>
 The controller decides, the model explains.
 
-**Demo video:** VIDEO_URL_TODO
+**Demo video:** [Watch HandoffProof on YouTube](https://youtu.be/LIAsrzvvelM).
 
 **Results at a glance** ([full results and limitations](docs/RESULTS.md)):
 
@@ -48,6 +48,7 @@ The controller decides, the model explains.
 - [Results and limitations](#results-and-limitations)
 - [Security](#security)
 - [Development and quality checks](#development-and-quality-checks)
+- [WSL2 checks](#wsl2-checks)
 - [Project layout](#project-layout)
 - [Documentation](#documentation)
 - [Built during the event](#built-during-the-event)
@@ -471,6 +472,30 @@ checks; their presence is not evidence that a particular run succeeded.
 
 The protected paths are listed by [scripts/manifest.sh](scripts/manifest.sh) and frozen
 in [.manifest.sha256](.manifest.sha256). Do not refresh the manifest to hide a failure.
+
+### WSL2 checks
+
+Use Linux Go 1.27.3 or newer inside Ubuntu. Confirm that `go version` reports a
+Linux toolchain, and enable Ubuntu under Docker Desktop's **Settings > Resources >
+WSL Integration**. The [Go downloads](https://go.dev/dl/) and
+[Docker WSL2 guide](https://docs.docker.com/desktop/features/wsl/) cover setup.
+Keep the checkout in the Linux filesystem:
+
+```bash
+git clone https://github.com/gowtham472/handoffproof.git ~/handoffproof-wsl
+cd ~/handoffproof-wsl
+go version
+docker version --format '{{.Client.Version}} / {{.Server.Version}}'
+bash scripts/check.sh
+go test ./... -count=1 -timeout 12m
+go run ./cmd/handoffproof drill --drill fresh_deployment_baseline --diagnose=false
+```
+
+These checks and the baseline do not require model credentials. Inspect test output
+for skips: an unavailable Docker daemon can skip the Docker fixture, which does not
+establish a successful sandbox run. The [recorded WSL validation](docs/VALIDATION.md)
+includes a successful fixture run and controller evidence for all three baseline
+workflows. Windows Application Control settings can remain in place.
 
 ## Project layout
 

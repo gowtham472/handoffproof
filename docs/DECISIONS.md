@@ -441,8 +441,9 @@ change does not replace either local video workflow or publish a new master.
 
 Compose startup/build is capped at six minutes; teardown and other steps at one minute.
 Cleanup runs even after cancellation and failures include the last 60 output lines,
-with declared secrets redacted. Local Docker stalls remain classified UNKNOWN rather
-than attributed to test contention; no unrelated Docker resources were removed.
+with declared secrets redacted. The initial Windows Docker stall was classified UNKNOWN
+rather than attributed to test contention; no unrelated Docker resources were removed.
+The subsequent WSL verification below records successful operation after host recovery.
 
 Saved benchmark prompts mixed application evidence. Second-fixture repairs used the
 demo controller workspace, and a historical repair log recorded an unfrozen manifest.
@@ -460,3 +461,20 @@ Read-only score audit during stabilization: 85/100, components workflows 84, fau
 documentation 80, backup 50. The 97-record corpus includes 6 BYOA records, so this is a
 repository-wide local snapshot using demo scan/ground truth, not a per-app guarantee.
 No score-history entry was added. The earlier 84/100 first snapshot remains valid.
+
+## Successful local WSL validation (2026-11-04)
+
+Use a fresh Linux checkout for verification when Windows Application Control blocks
+unsigned Go executables. Linux Go 1.27.3 and Docker Engine 29.7.2 completed the full
+quality gate and an uncached 13-package test run with zero skipped tests. The isolated
+`TestRunnerPythonFixture` passed in 13.84 seconds. The controller baseline passed
+registration (`EV-65e1518f`), booking (`EV-915408cd`) and confirmation email
+(`EV-78b1f7b0`). [Validation details and evidence](VALIDATION.md).
+
+Host recovery included user-approved cache cleanup, restarting the stuck WSL service
+with administrator approval, and removing inaccessible zero-byte Docker runtime IPC
+entries while Desktop was stopped. No Windows security policy was disabled. Existing
+Docker images, volumes and containers were retained; the test runners cleaned up their
+own temporary resources. These combined actions restored operation without isolating
+the original network stall to one cause. This validation made no model calls and does
+not change the historical benchmark measurements or their disclosed harness limits.

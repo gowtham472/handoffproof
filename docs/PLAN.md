@@ -7,8 +7,18 @@ benchmark artifacts, disclose harness and model failures, align documentation, c
 in structured groups, publish main and v1.0.2, verify CI and a fresh clone.
 No live model calls. Windows/Docker failures must remain explicit.
 
-Current local checks: Go vet and 12 non-BYOA packages pass. The BYOA fixture fails
-while Docker creates its network; Compose now reports a bounded deadline and logs.
+Current validation (2026-11-04): the fresh Ubuntu WSL2 checkout passed the full
+quality gate, Go vet, all 13 Go packages with zero skipped tests, and the controller
+baseline for registration, booking and confirmation email. The isolated Docker
+fixture passed in 13.84 seconds. See [the recorded validation](VALIDATION.md) for
+the tested revision, commands and controller evidence IDs. The original Windows
+network stall's single root cause remains unconfirmed.
+
+Documentation follow-up, approved by the user: publish the WSL validation record
+and its controller evidence sample, add reproducible WSL checks to the README,
+replace the demo placeholder with the supplied hosted link, run the quality gate,
+and commit and push only the documentation paths. Keep model benchmarks unchanged.
+
 The dated build notes below are historical, including earlier Windows policy blocks
 and pending approvals. They do not describe the current test or commit status.
 
