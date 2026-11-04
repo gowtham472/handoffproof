@@ -10,7 +10,7 @@ if [ -f go.mod ] && command -v go >/dev/null 2>&1; then
   echo "== go vet"
   go vet ./...
   echo "== go test"
-  go test ./...
+  go test ./... -timeout 15m
 else
   echo "skip go checks (no go.mod or go not installed)"
 fi

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -31,11 +32,26 @@ type RunRequest struct {
 }
 
 type runner struct {
-	req       RunRequest
-	dir       string
-	project   string
-	seq       int
-	sourceSHA string
+	req            RunRequest
+	dir            string
+	project        string
+	seq            int
+	sourceSHA      string
+	commandContext func(context.Context, string, ...string) *exec.Cmd
+	stepTimeout    time.Duration // optional shorter limit for command regression tests
+}
+
+func (r *runner) command(ctx context.Context, name string, args ...string) *exec.Cmd {
+	var cmd *exec.Cmd
+	if r.commandContext != nil {
+		cmd = r.commandContext(ctx, name, args...)
+	} else {
+		cmd = exec.CommandContext(ctx, name, args...)
+	}
+	// A Compose plugin can inherit the CLI's output pipes and outlive it on Windows.
+	// Context cancellation alone does not bound Cmd.Wait in that case.
+	cmd.WaitDelay = 2 * time.Second
+	return cmd
 }
 
 func composeEnvBase(extra ...string) []string {
@@ -152,15 +168,41 @@ func ValidateCompose(dir, file string) error {
 func (r *runner) appDir() string { return filepath.Join(r.dir, "app") }
 
 func (r *runner) compose(ctx context.Context, env []string, args ...string) (string, error) {
+	limit := time.Minute
+	if len(args) > 0 && args[0] == "up" {
+		limit = 6 * time.Minute
+	}
+	if r.stepTimeout > 0 {
+		limit = r.stepTimeout
+	}
+	stepCtx, cancel := context.WithTimeout(ctx, limit)
+	defer cancel()
 	full := []string{"compose", "-f", r.req.Profile.ComposeFile, "-f", "hp-override.yml", "-p", r.project}
 	full = append(full, args...)
-	cmd := exec.CommandContext(ctx, "docker", full...)
+	cmd := r.command(stepCtx, "docker", full...)
 	cmd.Dir = r.appDir()
 	cmd.Env = env
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
 	err := cmd.Run()
+	if err != nil || stepCtx.Err() != nil {
+		lines := strings.Split(strings.TrimRight(buf.String(), "\r\n"), "\n")
+		if len(lines) > 60 {
+			lines = lines[len(lines)-60:]
+		}
+		detail := strings.Join(lines, "\n")
+		for _, declared := range r.req.Profile.Env {
+			if value := r.req.Env[declared.Name]; declared.Secret && value != "" {
+				detail = strings.ReplaceAll(detail, value, "[REDACTED:secret]")
+			}
+		}
+		operation := "command"
+		if len(args) > 0 {
+			operation = args[0]
+		}
+		return buf.String(), fmt.Errorf("compose %s: %w; last 60 lines:\n%s", operation, errors.Join(err, stepCtx.Err()), agent.Redact(detail))
+	}
 	return buf.String(), err
 }
 
@@ -185,7 +227,9 @@ func (r *runner) envList(overrides map[string]string, omit map[string]bool) []st
 
 func (r *runner) writeOverride(ctx context.Context) error {
 	// Parse the real compose model; fail closed if Docker cannot.
-	cmd := exec.CommandContext(ctx, "docker", "compose", "-f", r.req.Profile.ComposeFile, "config", "--format", "json")
+	parseCtx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	cmd := r.command(parseCtx, "docker", "compose", "-f", r.req.Profile.ComposeFile, "config", "--format", "json")
 	cmd.Dir = r.appDir()
 	cmd.Env = r.envList(nil, nil)
 	out, err := cmd.Output()
@@ -218,18 +262,26 @@ func (r *runner) writeOverride(ctx context.Context) error {
 }
 
 func (r *runner) up(ctx context.Context, overrides map[string]string, omit map[string]bool) error {
+	upCtx, cancel := context.WithTimeout(ctx, 6*time.Minute)
+	defer cancel()
 	env := r.envList(overrides, omit)
-	if out, err := r.compose(ctx, env, "up", "-d", "--build"); err != nil {
-		return fmt.Errorf("compose up: %w: %s", err, agent.Redact(tail(out, 2000)))
+	if _, err := r.compose(upCtx, env, "up", "-d", "--build"); err != nil {
+		return err
 	}
-	return r.waitHealthy(ctx, env)
+	return r.waitHealthy(upCtx, env)
 }
 
-func (r *runner) down(ctx context.Context) {
-	_, _ = r.compose(ctx, r.envList(nil, nil), "down", "-v")
+func (r *runner) down(ctx context.Context) error {
+	// Cleanup must still run after the caller's deadline expires.
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
+	defer cancel()
+	_, err := r.compose(cleanupCtx, r.envList(nil, nil), "down", "-v")
+	return err
 }
 
 func (r *runner) waitHealthy(ctx context.Context, env []string) error {
+	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	defer cancel()
 	deadline := time.Now().Add(120 * time.Second)
 	for time.Now().Before(deadline) {
 		ok := true
@@ -337,7 +389,7 @@ func (r *runner) http(ctx context.Context, env []string, service, method, path s
 	}
 	full = append(full, service)
 	full = append(full, args...)
-	cmd := exec.CommandContext(ctx, "docker", full...)
+	cmd := r.command(ctx, "docker", full...)
 	cmd.Dir = r.appDir()
 	cmd.Env = env
 	if r.req.Profile.ProbeRuntime == "curl" {
@@ -460,7 +512,7 @@ func (r *runner) runStep(ctx context.Context, env []string, st Step) (bool, stri
 func (r *runner) exec(ctx context.Context, env []string, service string, argv []string) (string, error) {
 	full := []string{"compose", "-f", r.req.Profile.ComposeFile, "-f", "hp-override.yml", "-p", r.project, "exec", "-T", service}
 	full = append(full, argv...)
-	cmd := exec.CommandContext(ctx, "docker", full...)
+	cmd := r.command(ctx, "docker", full...)
 	cmd.Dir = r.appDir()
 	cmd.Env = env
 	var buf bytes.Buffer
@@ -517,7 +569,7 @@ func (r *runner) runWorkflows(ctx context.Context, env []string, drill string, f
 	return recs, results
 }
 
-func Run(ctx context.Context, req RunRequest) ([]evidence.Record, error) {
+func Run(ctx context.Context, req RunRequest) (records []evidence.Record, runErr error) {
 	if req.Profile == nil {
 		return nil, fmt.Errorf("profile is required")
 	}
@@ -552,10 +604,14 @@ func Run(ctx context.Context, req RunRequest) ([]evidence.Record, error) {
 		return nil, err
 	}
 	env := r.envList(nil, nil)
+	defer func() {
+		if err := r.down(ctx); err != nil {
+			runErr = errors.Join(runErr, err)
+		}
+	}()
 	if err := r.up(ctx, nil, nil); err != nil {
 		return nil, err
 	}
-	defer r.down(ctx)
 
 	switch req.Kind {
 	case "fresh_deployment_baseline":
@@ -563,7 +619,9 @@ func Run(ctx context.Context, req RunRequest) ([]evidence.Record, error) {
 		return recs, nil
 	case "withdrawn_test_token", "missing_configuration":
 		base, _ := r.runWorkflows(ctx, env, req.Kind, "")
-		r.down(ctx)
+		if err := r.down(ctx); err != nil {
+			return base, err
+		}
 		var overrides map[string]string
 		var omit map[string]bool
 		targetWorkflow := ""
@@ -613,7 +671,9 @@ func Run(ctx context.Context, req RunRequest) ([]evidence.Record, error) {
 		if _, err := r.exec(ctx, env, b.Service, b.DumpArgv); err != nil {
 			return base, fmt.Errorf("backup dump: %w", err)
 		}
-		r.down(ctx)
+		if err := r.down(ctx); err != nil {
+			return base, err
+		}
 		if err := r.up(ctx, nil, nil); err != nil {
 			return base, err
 		}
@@ -626,7 +686,9 @@ func Run(ctx context.Context, req RunRequest) ([]evidence.Record, error) {
 		// workflow that passed after the real restore now fails; a
 		// profile whose workflows never read restored data honestly
 		// reports "not detected" instead of a free pass.
-		r.down(ctx)
+		if err := r.down(ctx); err != nil {
+			return append(base, recs...), err
+		}
 		if err := r.up(ctx, nil, nil); err != nil {
 			return append(base, recs...), err
 		}
