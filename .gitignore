@@ -21,3 +21,12 @@ generated_images/*.lock
 # editor/os
 .DS_Store
 Thumbs.db
+
+# Local production reviews are not submission sources.
+/docs/VIDEO_REBUILD.md
+/docs/VIDEO_VALIDATION.md
+/demo/handoffproof-demo-poster.png
+/demo/handoffproof-demo.srt
+/demo/handoffproof-demo.validation.json
+/generated_images/*
+!/generated_images/handoffproof-concept.png
