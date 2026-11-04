@@ -41,7 +41,7 @@ func TestRenderEscapesAndLinks(t *testing.T) {
 	if !strings.Contains(html, `href="#EV-abc"`) || !strings.Contains(html, `id="EV-abc"`) {
 		t.Error("finding is not linked to its evidence record")
 	}
-	for _, want := range []string{"src/index.ts:68-73", "src/mail.ts:2-16", "Not provided — citation missing"} {
+	for _, want := range []string{"src/index.ts:68-73", "src/mail.ts:2-16", "Not provided: citation missing"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("finding source display %q missing", want)
 		}

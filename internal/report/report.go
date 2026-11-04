@@ -364,7 +364,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
     <div class="meta-grid">
       <div class="meta-cell"><div class="k">Workflow</div><div class="v">{{redact .Workflow}}</div></div>
       <div class="meta-cell"><div class="k">Failed step</div><div class="v">{{redact .FailedStep}}</div></div>
-      <div class="meta-cell"><div class="k">Source</div><div class="v">{{if .SourceRefs}}{{range .SourceRefs}}<code>{{redact .}}</code><br>{{end}}{{else if .SourceRef}}<code>{{redact .SourceRef}}</code>{{else}}<span class="muted">Not provided — citation missing</span>{{end}}</div></div>
+      <div class="meta-cell"><div class="k">Source</div><div class="v">{{if .SourceRefs}}{{range .SourceRefs}}<code>{{redact .}}</code><br>{{end}}{{else if .SourceRef}}<code>{{redact .SourceRef}}</code>{{else}}<span class="muted">Not provided: citation missing</span>{{end}}</div></div>
       <div class="meta-cell"><div class="k">Confidence</div><div class="v">{{printf "%.2f" .Confidence}}</div></div>
     </div>
     <div class="finding-columns">

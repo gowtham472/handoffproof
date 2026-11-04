@@ -1,5 +1,7 @@
 # Standalone landing on Vercel
 
+Live website: https://handoffproof-landing.vercel.app/
+
 Import gowtham472/handoffproof, branch main. Set Root Directory to `landing`.
 Framework preset: Other. Install command: `npm ci`. Build command:
 `npm run build:static`. Output directory: `dist`. No environment variables or

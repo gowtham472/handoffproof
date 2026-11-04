@@ -18,7 +18,7 @@ Choose:
 The imported source is copied. Secret-like files (`.env`, key and credential
 files) and symlinks are rejected or skipped by the same secret-path rules
 used by the scanner. Build and runtime folders (`node_modules`, `dist`,
-`backups`, `data`) are skipped only at the application root — a nested
+`backups`, `data`) are skipped only at the application root - a nested
 source folder with one of those names, such as `engine/src/data`, is
 application code and is copied.
 
@@ -68,7 +68,7 @@ HandoffProof found in the imported source.
 - **Missing configuration**: enter an env var name. HandoffProof reruns
   without it; the dependent workflow is expected to fail.
 - **Incomplete backup**: requires a configured backup. HandoffProof runs
-  dump, recreates the stack, restores, and reruns the workflows — then
+  dump, recreates the stack, restores, and reruns the workflows - then
   starts fresh once more *without* restoring and reruns them again. The
   fault is counted as detected only when a workflow that passed after the
   real restore now fails; if no workflow reads restored data, the run

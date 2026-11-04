@@ -10,9 +10,9 @@ confirms the claim only when the evidence matches that reading. Config: a gap
 claim holds when the env name is used but undocumented; an ok claim holds when
 it is documented. Backup: a gap claim holds when the incomplete-backup drill
 failed; an ok claim holds when it passed. Options considered: a
-model-proposed `asserts` field in the claim schema — rejected, it would let
+model-proposed `asserts` field in the claim schema - rejected, it would let
 model output steer a verdict and would need a prompt change and live
-re-measurement; keeping the old rule — rejected, it marked true claims
+re-measurement; keeping the old rule - rejected, it marked true claims
 contradicted. Limits: keyword reading treats a double negative ("no gaps") as
 a gap claim; credential claims are unchanged. The F4 test fixture C3 now says
 "The API key is not documented anywhere" (false in that workspace, so still
@@ -34,9 +34,9 @@ existing BYOA runner. Only a draft that passes all of it is "shown": served by
 `/api/drafts/latest` (operator-only) to the wizard's "Load verified auto-draft"
 button, where a human reviews it before import. Contributor model IDs are
 refused for drafting. Records go to `evidence/drafts/` with configured values
-scrubbed. Options considered: letting the controller strip unknown fields —
+scrubbed. Options considered: letting the controller strip unknown fields -
 rejected, a strict contract is safer; running drafting in the Control Room as a
-job — deferred, the CLI plus a verified-draft loader meets "human reviews in the
+job - deferred, the CLI plus a verified-draft loader meets "human reviews in the
 wizard" without a long-running HTTP job. Prompt v1 produced 3/3 miniapp drafts
 with invented fields (`required_for`, `verified`, `source`), failing strict
 decode; v2 adds `additionalProperties: false` on every schema object plus an
@@ -64,7 +64,7 @@ measured): `handoffproof whiteboard [--generate]`. Muse Image
 (`muse-image-1.0`, `POST /v1/images/generations`, PNG) made the fixture
 `eval/fixtures/whiteboard-synthetic.png`, labelled by
 `whiteboard-synthetic.label.json` (synthetic, prompt, sha256). SAM 3.1
-(`sam-3.1` on `/v1/responses`, base64 `input_image` — accepted live although the
+(`sam-3.1` on `/v1/responses`, base64 `input_image` - accepted live although the
 docs only show URLs) is called twice: "screen" first, failing closed (no vision
 call if it errors), then "sticky note". Boxes are parsed from the special-token
 text; masks are not decoded. Screens are pixelated, notes cropped from the
@@ -89,12 +89,12 @@ diagnosis go local; any phase whose route is not loopback runs with
 `Executor.DenySource` (list_files/read_file/search_code/static_scan_report
 refused). Every phase log line now carries `mode=`; the Control Room shows a
 "Private mode" badge from `/api/private-mode` (no key returned).
-Options considered: (a) a mode field in controller evidence records — rejected:
+Options considered: (a) a mode field in controller evidence records - rejected:
 drill records are model-independent and `internal/evidence` is protected, so the
 mode is recorded in the agent's per-phase evidence log line instead; (b) a
-separate executor wrapper in `cmd` — rejected: every call site would change,
+separate executor wrapper in `cmd` - rejected: every call site would change,
 while one per-phase copy in `RunPhase` covers them all; (c) only rewriting
-routes without a transport guard — rejected: a stray caller (e.g. transcription)
+routes without a transport guard - rejected: a stray caller (e.g. transcription)
 could still leak, so local mode guards the client too.
 Verified on dev.meta.ai (2026-11-03): Ollama tag `muse-glimmer` (Ollama
 0.32.7+, OpenAI-compatible `/v1`); vLLM image `vllm/vllm-openai:muse-glimmer`
@@ -108,7 +108,7 @@ The docs do not state structured-output (`response_format` json_schema) support
 for Glimmer, so schema conformance is unverified.
 Limits, stated plainly: hybrid cloud phases still receive model-written outputs
 of the local phases (secret-redacted, but they may paraphrase source); quality
-vs Spark is NOT measured — no local runtime or GPU on the build machine, so the
+vs Spark is NOT measured - no local runtime or GPU on the build machine, so the
 F2 glimmer rows stay "not run" with the recorded reason.
 
 ## F2 follow-up: render-only regen (2026-11-04)
@@ -136,7 +136,7 @@ Claims: extraction runs behind the process default route through a NEW spec
 file `prompts/f4_claim_extraction.json` (unprotected; the protected agent prompt
 is untouched) with read-only tools only. Claim statuses (confirmed /
 contradicted / unverifiable) are a separate deterministic taxonomy computed by
-`controller.VerifyClaims` from drill evidence + static scan — never model
+`controller.VerifyClaims` from drill evidence + static scan - never model
 verdicts, no pass/fail path touched. credential_location needs a dead
 withdrawn-token record AND a repo-wide name mention; backup needs
 incomplete-backup drill evidence; config reuses scan used-vs-documented;
@@ -150,7 +150,7 @@ before logging or persisting.
 
 Repair runs through the same single-agent loop with three hard bindings: (1) a
 repair-scoped runner unwires `submit_repair`, so the model can only use
-read-only file tools (secret paths stay denied) — the controller applies the
+read-only file tools (secret paths stay denied) - the controller applies the
 proposal diff itself and reruns the identical suite; (2) a 10-minute wall-clock
 cap (`repairPhaseTimeout`) on the repair phase, alongside the existing step
 (tool budget, turn cap), token (spec max) and schema-retry caps; (3) no
@@ -163,8 +163,8 @@ asserts applied=false/green=n/a with no Docker touched (existing
 `TestDiffTouchesProtected` covers the controller unit). Measured so far: a live
 spark13 demo-app cell caught 5/5 faults with 0 false alarms at ~174k tokens /
 $0.32, and the verification phase hit the 40-call tool budget without returning
-JSON — citations read 0/0 for that cell, an honest harness limit, not a model
-verdict (only the controller issues verdicts; no new verdict path added —
+JSON - citations read 0/0 for that cell, an honest harness limit, not a model
+verdict (only the controller issues verdicts; no new verdict path added -
 `grep Passed` shows no assignments outside `internal/controller`/`internal/evidence`).
 
 ## F2: Multi-model benchmark arm (2026-11-04)
@@ -197,7 +197,7 @@ Spark 1.3 Responses behaviour for all phases. Structured output maps as
 kept on the chat path. Retry (429/5xx + Retry-After, 3 attempts), local schema
 validation, 2 schema retries, and fail-closed are shared code for both
 providers. Every phase log line now carries model ID, provider, tokens, and
-latency. Glimmer's native ATEM tool format is not spoken by the chat adapter —
+latency. Glimmer's native ATEM tool format is not spoken by the chat adapter -
 a parser-enabled runtime (vLLM `--tool-call-parser muse_glimmer`, SGLang,
 llama.cpp `--tool-parser atem`, Ollama) is required before F5 can rely on it.
 `reasoning_effort: max` is documented for wonder-1.3/spark-1.3 on Responses;

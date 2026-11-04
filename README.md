@@ -19,6 +19,8 @@ A team needs to know what breaks when its developer leaves.<br>
 HandoffProof rehearses handover faults and records which workflows still work.<br>
 The controller decides, the model explains.
 
+**Live website:** [handoffproof-landing.vercel.app](https://handoffproof-landing.vercel.app/)
+
 **Demo video:** [Watch HandoffProof on YouTube](https://youtu.be/LIAsrzvvelM).
 
 **Results at a glance** ([full results and limitations](docs/RESULTS.md)):

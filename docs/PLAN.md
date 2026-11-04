@@ -1,5 +1,12 @@
 # HandoffProof - 3-day build plan (Step 1)
 
+## Public website follow-up (2026-11-04, user requested)
+
+Publish the live Vercel link in the README and polish punctuation across tracked
+public documentation, landing HTML, console and report copy. Preserve result numbers
+and local video files. Update the existing report expectation, refreeze only the four
+intentionally changed protected files, validate, and commit the manifest separately.
+
 ## Standalone landing deployment (2026-11-04, user requested)
 
 Prepare a static-only Vercel build rooted at landing, package all public assets,
@@ -162,7 +169,7 @@ Completed export: `videos/out/film/v4/handoffproof-film.mp4` (178 seconds,
 Docker fixture timeout from the full repository check. Protected manifest OK;
 runtime agent prompt and protected paths unchanged.
 
-## F6 + F7 (2026-11-04, code DONE — see RESULTS.md for measured numbers)
+## F6 + F7 (2026-11-04, code DONE - see RESULTS.md for measured numbers)
 
 F6 BYOA auto-drafter: `internal/draft/` (new, unprotected, +test),
 `prompts/f6_profile_draft.json` (new), `cmd/handoffproof/draft.go` (+test,
@@ -177,7 +184,7 @@ rendered by `draft --render`. F7 whiteboard (experimental):
 approval: `internal/agent/media*.go`, `cmd/handoffproof/*`, `prompts/*`.
 Open decision: claim polarity in controller config/backup verification.
 
-## F5: Private mode with Muse Glimmer (2026-11-03, code DONE — quality vs Spark not measured)
+## F5: Private mode with Muse Glimmer (2026-11-03, code DONE - quality vs Spark not measured)
 
 `HANDOFF_PRIVATE_MODE=local|hybrid` (default off) routes source-reading phases
 to a loopback Glimmer endpoint via F1. Local mode guards the HTTP client
@@ -194,7 +201,7 @@ Protected (awaiting manifest-refresh approval): `internal/agent/*`, `cmd/handoff
 Target, not result: Glimmer quality row in the F2 table (no local runtime here).
 F6/F7: not started (F7 is gated on F5 being measured, which it is not).
 
-## F4: Exit Interview Verifier (2026-11-04, DONE 2026-11-03 — cmd suite now executes and passes)
+## F4: Exit Interview Verifier (2026-11-04, DONE 2026-11-03 - cmd suite now executes and passes)
 
 Update 2026-11-03: Application Control no longer blocks the test binaries. The
 first real cmd run found a broken fake-server envelope in
@@ -216,14 +223,14 @@ verifies deterministically, persists a redacted record to
 HTML report interview section (`internal/report/report.go` +test). Verified by
 execution: report suite green (incl. TestRenderInterviewSection), agent suite
 green (incl. TestTranscribeFileDiarizedTurns/NoRetryOn400). Blocked: cmd suite
-(interview e2e, endpoint, F2/F3 tests) cannot execute — Windows Application
+(interview e2e, endpoint, F2/F3 tests) cannot execute - Windows Application
 Control denies all fresh test binaries; will rerun in an allow window. Then
 STOP for protected-path approval (cmd, controller, agent, report, prompts).
 Live benchmark for F2 complete (12/12 cells: spark13 6/6, wonder 6/6;
 spark-open/glimmer labelled not run with reasons); table regenerated via
 `eval --models ... --render-only` (renders from cell.json files only).
 
-## F3: Wonder repair agent (2026-11-04, implemented — with F2 below)
+## F3: Wonder repair agent (2026-11-04, implemented - with F2 below)
 
 `HANDOFF_MODEL_REPAIR=muse-wonder-1.0` in `.env` routes repair_proposal to
 Wonder via the F1 knob (config, not code). Repair runs on a scoped runner
@@ -254,7 +261,7 @@ Assumption: per-cell caught/missed reuse the deterministic arm scoring (detectio
 is controller-driven and identical across profiles); profiles differ on model
 metrics (citations, retries, tokens, latency, cost, apply/green rates).
 
-## F1: Per-phase model routing (2026-11-04, DONE — commits a1065f2 + 1d536f5)
+## F1: Per-phase model routing (2026-11-04, DONE - commits a1065f2 + 1d536f5)
 
 Implementation complete and green (see the F1 row in docs/DECISIONS.md).
 STOPPED before any manifest refresh/verify: awaiting explicit approval because
@@ -724,7 +731,7 @@ spec declared the field but did not require it), so the report's Source cell
 rendered blank. `LoadSpec` now requires at least one `source_references`
 entry per diagnosis finding before a diagnosis can be saved; report
 generation carries every reference into the report; and a finding that still
-has none renders "Not provided — citation missing" instead of an empty cell.
+has none renders "Not provided: citation missing" instead of an empty cell.
 The current withdrawn-token diagnosis was backfilled with verified
 `src/index.ts` / `src/mail.ts` references; `verify --model=false` reports all
 five citations verified. Covered by

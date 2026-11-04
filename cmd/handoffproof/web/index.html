@@ -1123,7 +1123,7 @@ function renderStartSteps() {
     else gotoPage(a);
   }));
 }
-function settingRow(k, v) { return '<div class="setting-row"><span class="k">' + esc(k) + '</span><span class="v">' + esc(v || '—') + '</span></div>'; }
+function settingRow(k, v) { return '<div class="setting-row"><span class="k">' + esc(k) + '</span><span class="v">' + esc(v || '-') + '</span></div>'; }
 function renderSlackSettings() {
   const el = $('slack-settings-body');
   if (!el) return;
@@ -1189,7 +1189,7 @@ function renderServerSettings() {
   const el = $('server-settings-body');
   if (!el) return;
   const s = summaryState || {};
-  el.innerHTML = settingRow('Model', s.model || 'not set') + settingRow('Evidence records', s.records ?? '—') + settingRow('Drill runs', s.runs ?? '—') + settingRow('Manifest', s.manifest ? String(s.manifest).slice(0, 12) + '…' : '—') + settingRow('Slack app', slackState && slackState.configured ? 'configured' : 'not configured') + settingRow('GitHub app', githubState && githubState.configured ? 'configured' : 'not configured');
+  el.innerHTML = settingRow('Model', s.model || 'not set') + settingRow('Evidence records', s.records ?? '-') + settingRow('Drill runs', s.runs ?? '-') + settingRow('Manifest', s.manifest ? String(s.manifest).slice(0, 12) + '…' : '-') + settingRow('Slack app', slackState && slackState.configured ? 'configured' : 'not configured') + settingRow('GitHub app', githubState && githubState.configured ? 'configured' : 'not configured');
 }
 async function loadSettings() {
   if ($('setting-page-size')) $('setting-page-size').value = String(evidencePageSize);
@@ -1298,11 +1298,11 @@ function renderInsights() {
     return '<article class="insight-finding">' +
       '<div class="insight-finding-head"><span class="tag ' + insightClassTag(f.classification) + '">' + esc(f.classification) + '</span><h3>' + esc(f.finding_id) + '</h3><span class="muted small">' + esc(f.workflow) + '</span></div>' +
       '<div class="insight-meta">' +
-        '<div class="meta-cell"><div class="k">Workflow</div><div class="v">' + esc(f.workflow || '—') + '</div></div>' +
+        '<div class="meta-cell"><div class="k">Workflow</div><div class="v">' + esc(f.workflow || '-') + '</div></div>' +
         '<div class="meta-cell"><div class="k">Confidence</div><div class="v">' + conf + '%</div><div class="confidence-track"><div class="confidence-fill" style="width:' + conf + '%"></div></div></div>' +
-        '<div class="meta-cell"><div class="k">Source</div><div class="v">' + (sources.length ? sources.map(s => '<code>' + esc(s) + '</code>').join('<br>') : '<span class="muted">Not provided — citation missing</span>') + '</div></div>' +
+        '<div class="meta-cell"><div class="k">Source</div><div class="v">' + (sources.length ? sources.map(s => '<code>' + esc(s) + '</code>').join('<br>') : '<span class="muted">Not provided: citation missing</span>') + '</div></div>' +
       '</div>' +
-      '<div class="insight-columns"><div><h4>Root cause</h4><p>' + esc(f.root_cause || '—') + '</p></div><div><h4>Business impact</h4><p>' + esc(f.business_impact || '—') + '</p></div></div>' +
+      '<div class="insight-columns"><div><h4>Root cause</h4><p>' + esc(f.root_cause || '-') + '</p></div><div><h4>Business impact</h4><p>' + esc(f.business_impact || '-') + '</p></div></div>' +
       '<div class="citation-list"><span class="muted small">Evidence:</span>' + ((f.evidence_ids || []).map(id => '<button type="button" data-evidence-link="' + esc(id) + '">' + esc(id) + '</button>').join('') || '<span class="muted small">none cited</span>') + '</div>' +
       ((chain.length || alternatives.length || logs.length) ? '<details><summary>Reasoning and logs</summary>' +
         (chain.length ? '<p><b>Causal chain</b></p><ul>' + chain.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '') +

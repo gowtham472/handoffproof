@@ -16,7 +16,7 @@ day-2 operations, and troubleshooting.
 | Meta Model API | Diagnosis, map, and repair proposals (`muse-spark-1.3`) | `META_API_KEY`, outbound HTTPS |
 
 The Go controller owns every verdict. The model proposes and explains only;
-if the API key is missing, agent phases are skipped and labelled as skipped —
+if the API key is missing, agent phases are skipped and labelled as skipped -
 nothing is fabricated.
 
 ## 2. Prerequisites
@@ -79,9 +79,9 @@ Working directory must be the repository root so `evidence/`,
 Follow the step-by-step guides, including the exact redirect URLs to
 register:
 
-- [Connect Slack](guide/connect-slack.md) — OAuth app, `incoming-webhook`
+- [Connect Slack](guide/connect-slack.md) - OAuth app, `incoming-webhook`
   scope, HTTPS callback, channel posting, disconnect.
-- [Connect GitHub](guide/connect-github.md) — OAuth app with PKCE, `repo`
+- [Connect GitHub](guide/connect-github.md) - OAuth app with PKCE, `repo`
   scope, repository/branch selection, importing applications.
 
 Only console operators can connect, post, disconnect, or manage
@@ -128,10 +128,10 @@ From [SECURITY.md](SECURITY.md); the short version:
 | Console returns 401 | Open the printed token URL once (sets the session cookie), or send `Authorization: Bearer <token>` |
 | Slack connect blocked | `HANDOFF_PUBLIC_URL` must be HTTPS and match the registered redirect URL exactly |
 | GitHub connect works locally but not remote | Register the HTTPS callback in the OAuth app; loopback callbacks only work locally |
-| Drill fails immediately | Docker daemon running? `docker info`. Images build on first run — allow a few minutes |
+| Drill fails immediately | Docker daemon running? `docker info`. Images build on first run - allow a few minutes |
 | BYOA header-authenticated endpoint fails | Add a `headers` entry to the step; use `${ENV_NAME}` to reference configured env values |
 | Report looks stale | `/report` regenerates automatically when evidence is newer; or run `handoffproof report` |
-| Share link 401 after restart | Store file moved/deleted, or the 24h expiry passed — mint a new link |
+| Share link 401 after restart | Store file moved/deleted, or the 24h expiry passed - mint a new link |
 | Agent phases skipped | `META_API_KEY`/`META_MODEL_ID` missing or invalid; deterministic scan/drill results are unaffected |
 
 ## 9. Verify the deployment
