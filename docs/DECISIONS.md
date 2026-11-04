@@ -366,6 +366,57 @@ Meta Model API details (endpoint, auth, model ID, structured output support).
 | 2026-11-01 | Illustrations + About topic rail: real Storyset SVGs (Agreement, Bug-fixing, Documents, Data Extraction, Team work) downloaded and recolored into the IBM palette (`#0f62fe` / `#6929c4`), served from `/assets/illustrations/` and used on Readiness, Rehearse, Evidence, Insights, and About; eyebrow chip-labels removed; master–detail columns equalized via stretch layout; About restructured to QSDTS's `.doc` grid with a sticky "On this page" topic rail and scrollspy; logo concept generated to `docs/logo-concept.png` | User asked for Storyset/unDraw-style illustrations in all places, a logo prompt/concept, correct About sections, and the QSDTS side rail of topics |
 
 
+## Video v4 corrections (2026-11-04)
+
+- User approved the correction plan with a soft smoke exit and clean blurred
+  kinetic reveals. Reference sampled at 10 fps across its 7.45-second duration;
+  exact font identity cannot be established from the compressed reference.
+  Retain Plus Jakarta Sans only for kinetic text and existing IBM Plex elsewhere.
+- Measure actual loaded-font word advances, use the font's space advance, and
+  ease phrase framing continuously. Explicitly wait for font loads before
+  measuring; failures abort rendering instead of silently using fallback fonts.
+- Replace all concentric ripple accents with a finite local underline sweep.
+  End card: all three characters appear, Tony anticipates and exits with soft
+  deterministic smoke puffs, then the remaining pair recenters above a centered
+  title, tagline, repository link, badges, and footer. Keep the final camera still.
+- Replace the v3 music with "Carefree" by Kevin MacLeod, ISRC USUAN1400037,
+  sourced directly from incompetech.com. Official track search metadata identifies
+  CC BY 4.0; the official licensing page confirms the free attribution route:
+  https://incompetech.com/music/royalty-free/licenses/ . Credit included on the
+  end card, in videos/MUSIC_CREDITS.txt, and in videos/public/audio/README.md.
+  Trim, normalize, gently filter, fade, and duck the track beneath narration;
+  reduce heavy impact effects. The earlier Mixkit library download returned
+  HTTP 403; no Mixkit replacement was used.
+- Export separately under videos/out/film/v4; retain the prior v3 export.
+
+- Follow-up direction: the dedicated Docker/Meta logo stages, GitHub/Slack
+  stage, and two-integrations scene use bright moving multipoint gradients,
+  independently drifting four radial color fields behind white animated marks.
+  Closing background stays white. User explicitly rejected the initial darker
+  gradients; vivid blues/cyan and violet/magenta supersede them.
+- Kinetic metrics use hidden DOM probes with the actual loaded typeface and
+  weights, including a natural minimum 0.25em space; no estimated word widths.
+
+## Reference motion and sound v5 (2026-11-04)
+
+- User approved the reference motion/sound refinement plan. Full 30 fps analysis
+  of the 223-frame reference showed that its AAC stream decodes to 657,532
+  signed-16-bit channel samples, all zero. There is no effect to extract.
+- Typography now uses a finite entrance pullback, constant-size phrase tracking,
+  reading holds, and a separate final lockup settle. Punches move a single line
+  through successive two-word focus groups; older text leaves the left edge,
+  matching the reference's spatial choreography rather than shrink-to-fit.
+- Replace decorative pops, taps, bells, electronic confirmations and per-word
+  sounds with sparse air movement from Mixkit Air woosh 1489. Existing mouse
+  clicks remain quietly only for visible captured UI actions. Source and license
+  are recorded in videos/public/sfx/README.md. Measured sound-envelope peaks
+  align to movement centers; shared constants connect punch/outro cues to motion.
+- Keep the approved bright multipoint logo scenes, light music bed, narration,
+  Tony smoke exit, and centered white closing card. The final export is v5.
+- Preview temporary files now stay in videos/out/tmp on D: after a system-drive
+  space failure; only the known incomplete bundle from that attempt was removed.
+
+
 ## README refresh (2026-11-04)
 
 Document current behaviour from CLI handlers, routing configuration, UI handlers,
@@ -385,3 +436,27 @@ video-production folders. The tracked master is 2:30, a separate modified local
 master is 2:55, and the local videos/v5 export is 2:58; do not assign a local
 cut's duration to the published repository link. This documentation
 change does not replace either local video workflow or publish a new master.
+
+## Final stabilization: bounds and benchmark provenance (2026-11-04)
+
+Compose startup/build is capped at six minutes; teardown and other steps at one minute.
+Cleanup runs even after cancellation and failures include the last 60 output lines,
+with declared secrets redacted. Local Docker stalls remain classified UNKNOWN rather
+than attributed to test contention; no unrelated Docker resources were removed.
+
+Saved benchmark prompts mixed application evidence. Second-fixture repairs used the
+demo controller workspace, and a historical repair log recorded an unfrozen manifest.
+Filter future cells by application, refuse unsupported second-fixture repair/rerun,
+and check deterministic citations on diagnosis JSON rather than verification JSON.
+Keep historical cell measurements unchanged. Render-only output explains these defects;
+no model-quality or repair improvement is claimed without a fresh live evaluation.
+The standalone five-verdict artifact lacks exact invocation and revision provenance.
+
+The prompt drill_plan schema is retained for compatibility but is not invoked.
+Drills execute in controller order. Historical Handover Score snapshots are not a
+current score guarantee; the score uses available local evidence and scan results.
+
+Read-only score audit during stabilization: 85/100, components workflows 84, faults 100,
+documentation 80, backup 50. The 97-record corpus includes 6 BYOA records, so this is a
+repository-wide local snapshot using demo scan/ground truth, not a per-app guarantee.
+No score-history entry was added. The earlier 84/100 first snapshot remains valid.

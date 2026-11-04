@@ -1,5 +1,17 @@
 # HandoffProof - 3-day build plan (Step 1)
 
+## Final stabilization (2026-11-04, user-approved autonomous mission)
+
+No new features. Audit baseline and security, bound Compose subprocesses, diagnose saved
+benchmark artifacts, disclose harness and model failures, align documentation, commit
+in structured groups, publish main and v1.0.2, verify CI and a fresh clone.
+No live model calls. Windows/Docker failures must remain explicit.
+
+Current local checks: Go vet and 12 non-BYOA packages pass. The BYOA fixture fails
+while Docker creates its network; Compose now reports a bounded deadline and logs.
+The dated build notes below are historical, including earlier Windows policy blocks
+and pending approvals. They do not describe the current test or commit status.
+
 ## README refresh (2026-11-04, implemented; documentation checks complete)
 
 Scope: update README.md against the current implementation and existing guides.
@@ -60,6 +72,78 @@ passed. Full `bash scripts/check.sh` completed gofmt/vet, then exited 1 because
 other listed Go packages passed. A no-credentials `go run ... scan` attempt was
 blocked by Windows Application Control before execution, not reported as passed.
 Commit and push explicitly authorized. Publish this task's documentation only.
+
+## Reference motion + sound refinement (2026-11-04, v5 exported; Docker fixture timeout)
+
+Read-only analysis completed: reference decoded at 30 fps into timestamped
+consecutive-frame sheets under `videos/out/review/reference-deep/`. Audio has
+657,532 decoded signed-16-bit channel samples, all zero: there is no reference
+effect to extract. Detailed motion timings: `videos/REFERENCE-ANALYSIS.md`.
+
+1. Replace decorative repeated pops, taps, bleeps and word-by-word hits with a
+   sparse sound design: short soft air sweeps following horizontal phrase travel
+   and zoom transitions, a light air puff on Tony's smoke exit, and a restrained
+   final settle. Leave holds quiet; reserve quiet mouse clicks for visible UI
+   actions. Choose/trim actual suitable effects and verify their source/license.
+2. Rework kinetic choreography to match the reference's distinct stages:
+   entrance scale change, short hold, phrase-level horizontal track, emphasis
+   push-in, and an intentional reset into the next phrase. Use clean brief blur
+   during fast movement. Avoid shrinking every accumulating sentence to fit.
+   Keep final reading holds fully readable and naturally spaced.
+3. Preserve the approved bright multipoint logo scenes, white closing card,
+   three-character opening to the outro, Tony's smoke, and centered final pair.
+   Refine transition and lockup timings so sound follows the actual movement.
+4. Render short opening/punch/outro previews with new sound first, inspect
+   consecutive frames and cue timings, then export v5 retaining v4. Run video
+   typecheck and required repository checks; report actual results and any
+   Docker-test timeout. Validate final audio/video duration and full-file decode.
+
+Implementation and export completed: `videos/out/film/v5/handoffproof-film.mp4`
+(178 seconds, 1080p/30 fps). Details: `videos/REVIEW-v5.md`. Typecheck,
+skill formatting, protected manifest, and full movie decode succeeded. Full
+repository check exited 1 on the existing Docker fixture's 10-minute timeout.
+
+## Video corrections (2026-11-04, video exported; repository gate has Docker fixture timeout)
+
+Scope: `videos/`, using `videos/out/film/v3/handoffproof-film.mp4` as the current
+render. Preserve existing unrelated edits in `film/`, `demo/`, and elsewhere.
+Reference: user-supplied 7.45-second clip, sampled every 0.1 seconds across the
+clip (75 samples); inspect consecutive frames around entrances during editing.
+
+1. Rebuild shared kinetic typography to follow the reference's word-by-word
+   composition, smooth horizontal tracking, scale changes, and emphasis holds.
+   Replace character-count width estimates with actual loaded-font measurements;
+   use consistent natural word spacing. Apply to the introduction, title text,
+   punch scenes, and closing tagline; audit other animated text throughout.
+2. Remove every concentric ripple use, including buttons, logo stages, feature
+   accents, and the closing HOP badge. Substitute a restrained one-time accent
+   sweep with a short lift/settle and compact soft shadow; no expanding rings.
+3. Give the dedicated Docker, Meta, GitHub, Slack and two-integrations logo
+   scenes bright moving multipoint gradients, white animated marks, and contrasting light
+   text. This request applies to the user-supplied scene screenshots; the
+   closing card keeps its white background.
+4. Rebuild the closing composition around a centered three-character group.
+   All three appear first; Tony glances back, does a playful anticipation hop with soft smoke puffs,
+   and exits. The controller and model ease into a centered pair. Center the
+   title/HOP lockup, naturally spaced tagline, repository link, technology
+   badges, and footer with a stable final reading hold.
+5. Source a lighter instrumental music bed from a free-to-use music library,
+   verify the track's actual license, and record source/credit requirements.
+   Favor gentle piano/plucks, soft rhythm, no vocals or heavy bass. Mix quietly
+   beneath narration, with smooth fades and speech ducking; review transition
+   effects for harshness as part of the new mix.
+6. Validate each implementation step with `bash scripts/check.sh` and the video
+   project's typecheck. Render short motion previews and closely spaced frame
+   sheets for text entrances and Tony's exit; inspect all ripple locations and
+   text spacing across the film. Export to a new `videos/out/film/v4/` directory,
+   retaining v3. Review the full export for timing, narration clarity, audio
+   levels, readability, and duration under three minutes. Record actual checks
+   and design decisions; make no new product/evidence claims.
+
+Completed export: `videos/out/film/v4/handoffproof-film.mp4` (178 seconds,
+1080p/30 fps). See `videos/REVIEW-v4.md` for actual validation and the existing
+Docker fixture timeout from the full repository check. Protected manifest OK;
+runtime agent prompt and protected paths unchanged.
 
 ## F6 + F7 (2026-11-04, code DONE — see RESULTS.md for measured numbers)
 
@@ -133,9 +217,9 @@ fan-out. Files: `cmd/handoffproof/main.go` (scoped runner + timeout in
 `cmd/handoffproof/eval_models_test.go` (read-only + protected-refusal tests),
 `.env` (gitignored local routing; defaults unchanged). No protected-path edits;
 no new verdict path. Wonder-vs-Spark repair metrics come from the F2 table's
-wonder/spark13 rows (live benchmark running).
+wonder/spark13 rows (historical cells; mixed-evidence and repair-workspace limitations apply).
 
-## F2: Multi-model benchmark arm (2026-11-04, code complete — live benchmark running)
+## F2: Multi-model benchmark arm (2026-11-04, code complete; historical benchmark recorded with harness limitations)
 
 `handoffproof eval --models spark13,wonder,spark-open,glimmer [--reps 3]` runs
 each profile on demo-app + heldout-app, 3 reps per cell, into
