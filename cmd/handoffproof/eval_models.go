@@ -187,7 +187,7 @@ func runModelCell(ctx context.Context, root, evDir string, p modelProfile, model
 		writeCell(dir, &cell)
 		return cell
 	}
-	recs := readEvidenceRecords(evDir)
+	recs := cellEvidence(readEvidenceRecords(evDir), app)
 	ev := newMemEvidence()
 	ev.add(recs)
 
@@ -281,13 +281,18 @@ func runModelCell(ctx context.Context, root, evDir string, p modelProfile, model
 	for _, r := range recs {
 		validIDs[r.ID] = true
 	}
-	if verRes, err := run(ctx, runner, "verification",
+	if _, err := run(ctx, runner, "verification",
 		"Adversarially verify this diagnosis. For each finding use read_file/search_code to check the root cause against real code. "+
 			"citation_ok is true only when a real file:line supports the root cause; propose corrected_source_references otherwise. "+
 			"evidence_ok is true only when observed findings cite evidence_ids.\nDiagnosis:\n"+string(diagJSON)); err != nil {
 		plog("verification model pass failed (deterministic checks still apply): %v", err)
-	} else if _, derr := agent.CheckCitations(appDir, verRes.JSON, validIDs); derr != nil {
+	}
+	if checks, derr := agent.CheckCitations(appDir, diagJSON, validIDs); derr != nil {
 		plog("deterministic citation check: %v", derr)
+	} else {
+		for _, check := range checks {
+			plog("deterministic citation %s: %s, evidence=%s: %s", check.FindingID, check.Status, check.Evidence, check.Detail)
+		}
 	}
 
 	events := parseSecurityEvents(dir)
@@ -312,6 +317,12 @@ func runModelCell(ctx context.Context, root, evDir string, p modelProfile, model
 // cellRepairAttempt applies the first ordered repair diff and reruns
 // acceptance when applied. It mirrors the repair loop's preference order.
 func cellRepairAttempt(ctx context.Context, root string, repairJSON json.RawMessage, p modelProfile, app string, rep int, plog func(string, ...any)) (applied bool, green string) {
+	// The controller's repair copy and acceptance suite are demo-app specific.
+	// Never apply a second fixture's diff to that different application.
+	if app != "demo-app" {
+		plog("repair not run: %s has no matching controller repair/acceptance workspace", app)
+		return false, "n/a"
+	}
 	var rep2 struct {
 		Repairs []struct {
 			ID    string  `json:"repair_id"`
@@ -354,6 +365,17 @@ func cellRepairAttempt(ctx context.Context, root string, repairJSON json.RawMess
 		return true, "false"
 	}
 	return false, "n/a"
+}
+
+// Legacy records without AppID belong only to the bundled demo application.
+func cellEvidence(records []evidence.Record, app string) []evidence.Record {
+	var out []evidence.Record
+	for _, rec := range records {
+		if rec.AppID == app || (rec.AppID == "" && app == "demo-app") {
+			out = append(out, rec)
+		}
+	}
+	return out
 }
 
 func hasRepairDiff(raw json.RawMessage) bool {
@@ -596,6 +618,9 @@ func renderModelTable(evDir string, profiles []modelProfile, reps int) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "\n## Model comparison (profiles x apps, %d runs per cell)\n\n", reps)
 	fmt.Fprintf(&b, "Each cell runs the six agent phases live behind the profile router on the same recorded controller drill evidence; detection arms are controller-driven and identical across profiles, while citation, retry, token, latency, cost and repair columns vary by model. Sample size: %d runs per cell on author-written fixtures (`demo-app`, `eval/fixtures/heldout-app`). Rows labelled `not run` never started; their reason is recorded, not omitted. Denominators: apply = cells whose proposal carried a diff; green = applied cells.\n\n", reps)
+	b.WriteString("Historical artifact limitations: these saved cells predate application-scoped evidence filtering. Their prompts included mixed demo and BYOA records, and second-fixture repairs were incorrectly attempted against the demo-app copy. Some logs also record a manifest mismatch during a historical repair. These are harness defects, so the table is not a clean controlled model comparison. The fixes have not been evaluated with live models; rendering saved cells does not repair or replace their measurements.\n\n")
+	b.WriteString("Cit V/I counts model-verifier verdicts: verified requires both citation_ok and evidence_ok; invalid means citation_ok is false. It is not the deterministic file/line checker count, and V/I is two counts, not a success fraction. The deterministic checker resolves diagnosis paths and line ranges and checks evidence IDs; it does not prove semantic support. Several model findings used only EV identifiers instead of file:line references. Apply 1st-try counts whether the first prioritized nonempty diff applied to a sandbox; it does not establish recovery. Bad diff context and the harness workspace error both contributed to failures. Controller verdicts never depend on model citations.\n\n")
+	b.WriteString("The earlier five-verdict verification.json is a separate model-verifier artifact from the demo workflow. Its exact source revision and invocation are not recorded, so identical checker/workspace/code provenance cannot be established from the artifact; it must not be compared as a repeat of these cells.\n\n")
 	b.WriteString("| Profile | App | Runs OK | Caught | Missed | False alarms | Cit V/I | Schema-fail turns | Tokens/run | Latency/run | Est. $/run | Apply 1st-try | Rerun green |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
 	for _, p := range profiles {
 		for _, app := range evalApps {

@@ -14,7 +14,30 @@ import (
 	"time"
 
 	"github.com/gowtham472/handoffproof/internal/agent"
+	"github.com/gowtham472/handoffproof/internal/evidence"
 )
+
+func TestCellEvidenceExcludesOtherApplications(t *testing.T) {
+	records := []evidence.Record{{ID: "legacy"}, {ID: "demo", AppID: "demo-app"}, {ID: "held", AppID: "heldout-app"}, {ID: "other", AppID: "vellam"}}
+	for _, tc := range []struct {
+		app  string
+		want int
+	}{{"demo-app", 2}, {"heldout-app", 1}, {"absent", 0}} {
+		if got := cellEvidence(records, tc.app); len(got) != tc.want {
+			t.Errorf("%s: got %v, want %d matching records", tc.app, got, tc.want)
+		}
+	}
+}
+
+func TestSecondFixtureRepairNeverUsesDemoWorkspace(t *testing.T) {
+	var message string
+	// A nonexistent root proves the refusal occurs before any copy or apply.
+	applied, green := cellRepairAttempt(context.Background(), filepath.Join(t.TempDir(), "absent"), json.RawMessage(`{"repairs":[{"type":"documentation","diff":"--- a/app/docs/NOTES.md\n+++ b/app/docs/NOTES.md\n@@ -1 +1 @@\n-old\n+new\n"}]}`), modelProfile{}, "heldout-app", 1,
+		func(format string, args ...any) { message = fmt.Sprintf(format, args...) })
+	if applied || green != "n/a" || !strings.Contains(message, "no matching controller") {
+		t.Fatalf("applied=%v green=%s log=%s", applied, green, message)
+	}
+}
 
 type stubRepairSubmitter struct{}
 
