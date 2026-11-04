@@ -13,28 +13,32 @@
   <img alt="Docker" src="https://img.shields.io/badge/Sandbox-Docker%20Compose-2496ED?logo=docker&logoColor=white">
 </p>
 
-HandoffProof helps a team rehearse what happens when its developer leaves. It runs
-an application in an isolated Docker environment, introduces handover faults, and
-records which workflows still work. It also checks information from exit interviews
-and experimental whiteboard inputs against code, configuration, and recorded evidence.
+![Controller evidence view](landing/screens/evidence.jpg)
 
-> **The Go controller determines outcomes. Models explain evidence and propose changes.**
-> A model cannot award a pass, change protected acceptance tests, or replace controller evidence.
+A team needs to know what breaks when its developer leaves.<br>
+HandoffProof rehearses handover faults and records which workflows still work.<br>
+The controller decides, the model explains.
 
-Built independently by Gowtham in Chennai during the Meta Global AI Developer Hackathon,
-October 26 to November 4, 2026.
+**Demo video:** VIDEO_URL_TODO
 
-**Demo video:** [Watch HandoffProof on YouTube](https://youtu.be/LIAsrzvvelM).
+**Results at a glance** ([full results and limitations](docs/RESULTS.md)):
+
+- Static scan, demo-app: 3 caught, 2 missed, 0 false alarms.
+- Scan + drills, no model, demo-app: 4 caught, 1 missed, 0 false alarms.
+- Full HandoffProof, demo-app: 5 caught, 0 missed, 0 false alarms.
+- Static scan, second fixture (author-written): 3 caught, 0 missed, 0 false alarms.
 
 ## Contents
 
 - [Why HandoffProof](#why-handoffproof)
 - [Features](#features)
 - [How it works](#how-it-works)
+- [How the Meta models are used](#how-the-meta-models-are-used)
 - [Model roles and routing](#model-roles-and-routing)
 - [Quick start](#quick-start)
 - [Control Room](#control-room)
 - [Test your own application](#test-your-own-application)
+- [Experimental features](#experimental-features)
 - [Profile auto-drafting](#profile-auto-drafting)
 - [Exit interviews](#exit-interviews)
 - [Private mode](#private-mode)
@@ -49,6 +53,19 @@ October 26 to November 4, 2026.
 - [Built during the event](#built-during-the-event)
 
 ## Why HandoffProof
+
+HandoffProof helps a team rehearse what happens when its developer leaves. It runs
+an application in an isolated Docker environment, introduces handover faults, and
+records which workflows still work. It also checks information from exit interviews
+and experimental whiteboard inputs against code, configuration, and recorded evidence.
+
+> **The Go controller determines outcomes. Models explain evidence and propose changes.**
+> A model cannot award a pass, change protected acceptance tests, or replace controller evidence.
+
+Built independently by Gowtham in Chennai during the Meta Global AI Developer Hackathon,
+October 26 to November 4, 2026.
+
+**Demo video:** [Watch HandoffProof on YouTube](https://youtu.be/LIAsrzvvelM).
 
 A working homepage does not tell a team whether it can operate an application without
 its original developer. Mail credentials may belong to one person, a required setting
@@ -109,7 +126,19 @@ Models read application material as untrusted data. Observed findings need contr
 evidence IDs. Inferred risks and untested dependencies stay labelled as such. A proposed
 repair is not evidence of recovery; the controller must run the relevant checks again.
 
-## Model roles and routing
+## How the Meta models are used
+
+The core model ID comes from `META_MODEL_ID`. With the default Meta route, each
+of `intake_summary`, `dependency_map`, `diagnosis`, `repair_proposal`, `assessment`,
+and `verification` calls the Responses API and requests schema-validated JSON.
+The cloud `claim_extraction` and `profile_draft` phases also use Responses with
+structured output; drafting defaults to Wonder via `HANDOFF_MODEL_DRAFT`.
+Whiteboard segmentation and vision claim extraction use Responses through the
+media client, while transcription and image generation use dedicated operations.
+Interview claim extraction, private mode, whiteboard claims, and profile auto-drafting
+are experimental; their routing and evidence limits are described below.
+
+### Model roles and routing
 
 The default configuration in [.env.example](.env.example) uses Muse Spark 1.3 for the
 core agent. Its six phases are `intake_summary`, `dependency_map`, `diagnosis`,
@@ -242,7 +271,11 @@ Environment values entered through the wizard are encrypted on the server and ar
 returned to the browser. Profiles contain names and structure, never secret values.
 See the [application guide](docs/guide/applications.md) for the profile contract and limits.
 
-## Profile auto-drafting
+## Experimental features
+
+These features have limited fixture evidence and require human review.
+
+### Profile auto-drafting
 
 The CLI can ask a model to propose a profile from an application's source:
 
@@ -263,7 +296,7 @@ the selected application. `--no-baseline` is a diagnostic option; such a draft i
 eligible for display. Current measured draft limitations are in
 [Results](docs/RESULTS.md#profile-auto-drafter-f6).
 
-## Exit interviews
+### Exit interviews
 
 Turn an exit interview into claims about credentials, configuration, backups, and
 operating procedures. Use audio or a transcript:
@@ -283,7 +316,7 @@ latest interview in Evidence. To include a specific record in a generated report
 `report --interview /path/to/interview.json` together with the required `--evidence` input.
 Local mode refuses cloud transcription; supply a locally produced transcript instead.
 
-## Private mode
+### Private mode
 
 Set `HANDOFF_PRIVATE_MODE` to `off`, `local`, or `hybrid`.
 
@@ -311,7 +344,7 @@ in hybrid mode; it is not one of the six per-phase routes. Slack and GitHub conn
 are also separate cloud integrations. Private mode is not a claim that the entire
 console or host is disconnected from the network.
 
-## Whiteboard claims
+### Whiteboard claims
 
 **Experimental.** This CLI pipeline reads handover notes from PNG/JPEG images:
 
@@ -380,20 +413,25 @@ underlying artifacts. These are fixture-specific records, not a production relia
 or general model-accuracy claim.
 
 - **Repair:** a proposed or applied diff does not establish recovery. Check the new
-  controller evidence; benchmark first-try repair limitations are reported in Results.
+  controller evidence. Historical benchmark first-try applies were 0/3, 0/3, 0/1,
+  and 0/3. Mixed evidence and a wrong repair workspace affected those measurements;
+  see the harness limitations in Results. No corrected live rerun was performed.
 - **Auto-drafting:** manual profile authoring remains available when a draft is rejected. The final
-  measured miniapp drafts did not reach an accepted baseline; other runs are explicitly
+  measured miniapp drafts reached 0/3 unedited baseline passes; other runs are explicitly
   labelled when not performed with the final code.
 - **BYOA:** Compose-only, with no HTTP response-value capture between steps. Backup
   testing compares workflow behaviour after restoration with a skipped-restore run;
   it does not provide arbitrary-store file-hash verification.
 - **Local models:** routing/egress checks and model-quality evaluation are different
-  questions. The results document which local/Open profiles were not run.
-- **Whiteboards:** experimental, with synthetic-fixture evaluation only. Segmentation
+  questions. The spark-open and glimmer benchmark profiles were not run.
+- **Whiteboards:** experimental, evaluated on one synthetic image only. Segmentation
   can miss sensitive regions, so do not treat pixelation as universal redaction.
 - **Interview claims:** verification depends on available scan/drill evidence and
   keyword-based claim polarity. Ambiguous wording, including double negatives, can
   be misread; unsupported process claims need human documentation.
+- **Readiness score:** combines available stored controller records with the bundled-demo
+  scan and ground truth. It is not an isolated per-application readiness measure.
+- **Outsider fault:** remains a target. No outsider-fault evaluation is recorded.
 - **Sharing and integrations:** share links expire after 24 hours; PDF is browser
   print-to-PDF; Slack uses an incoming webhook rather than a full interactive bot.
 
@@ -477,7 +515,10 @@ containing the generated results file.
 ## Built during the event
 
 Built during the Meta Global AI Developer Hackathon, October 26 to November 4, 2026.
+**Team: solo, Gowtham (gowtham472).**
+
 **Contributor:** Gowtham ([gowtham472](https://github.com/gowtham472)), Chennai, solo.
+**Built with:** Muse Code as coding agent; runtime cloud reasoning calls through the Meta Model API.
 Muse Code was used as a coding agent, with AI assistants supporting planning and
 implementation. Build-time assistants are separate from the runtime model routes above.
 
@@ -488,3 +529,5 @@ source folders are not required to run HandoffProof and are not linked as public
 Illustrations adapted from [Storyset](https://storyset.com). Report and console visuals
 follow IBM Carbon conventions. Follow the credits accompanying each distributed video
 for its music and sound effects.
+
+Third-party UI code retains the [Reactbits license](landing/src/reactbits/LICENSE.md).
