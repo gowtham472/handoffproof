@@ -1,5 +1,66 @@
 # HandoffProof - 3-day build plan (Step 1)
 
+## README refresh (2026-11-04, implemented; documentation checks complete)
+
+Scope: update README.md against the current implementation and existing guides.
+Preserve unrelated local edits, protected paths, the runtime agent prompt,
+recorded results, and both video-production trees. Use plain professional wording
+without em dashes. No new API/model calls or new runtime-result claims.
+
+Audit findings confirmed in source:
+
+- Exit interviews, local/hybrid private mode, profile auto-drafting, and
+  experimental whiteboard claim checking appear only in the limitations tail;
+  the main feature overview and user workflows omit them.
+- CLI table omits `interview`, `draft`, and `whiteboard`. It also describes
+  `repair` incorrectly: this command takes a diff and applies/reruns it;
+  model repair proposals are part of `drill --full`.
+- The claim that every model call uses one Meta Responses endpoint is false
+  for per-phase provider routing, local/hybrid mode, and audio/image operations.
+- Auto-drafting is a CLI workflow; the wizard loads a previously accepted
+  candidate. It does not initiate a model drafting run from the load button.
+- Prerequisites omit the go.mod version, Compose v2, Git Bash/bash, and Node
+  requirements for the demo/acceptance workflow. Static scan can be introduced
+  separately from cloud-model setup.
+- The modified local demo is 2:55.02, while the tracked remote master is 2:30.02.
+  Local videos/out/film/v5 is another 2:58 cut. `film/` and `videos/` are ignored,
+  so links into them will not work for a fresh GitHub visitor. Do not overwrite
+  the already-modified demo master or claim that v5 is the linked public asset.
+- Documentation table is broken by a paragraph inserted between its rows.
+  Model role/status text is duplicated, the layout omits newer packages, and
+  broad "implemented and verified" wording hides measured feature limits.
+
+Implementation plan:
+
+1. Rewrite the introduction, feature overview and model-role explanation around
+   the current product: controller-owned outcomes; explicit cloud/default,
+   per-phase, local and hybrid routes; interview transcription; draft generation;
+   experimental image claims. Keep build-time assistants separate from runtime.
+2. Add concise practical workflows for exit interviews, loading CLI-generated
+   profile candidates, local/hybrid configuration, and experimental whiteboard
+   input. Show only flags and environment names confirmed in source; explain
+   which actions are CLI-only and which results appear in the console.
+3. Correct quick start, CLI reference, architecture/layout, integration details,
+   demo metadata/public links, documentation navigation, and build/team credits.
+   Keep the linked demo master unchanged; distinguish it from local video cuts.
+4. Consolidate status and limitations next to relevant features. Link measured
+   results instead of copying volatile totals or claiming new verification.
+   State auto-draft, local-runtime, synthetic-whiteboard, and BYOA limits plainly.
+5. Validate relative links and section anchors; check command/flag/env examples
+   against implementation without invoking models or changing evidence. Run
+   `bash scripts/check.sh`, report actual results (including any existing Docker
+   fixture timeout), and verify protected-file integrity. Record any substantive
+   documentation decisions in docs/DECISIONS.md.
+
+README rewrite complete. Validated all 46 Markdown links, relative targets in
+tracked files, section anchors, and coverage of all 12 implemented CLI commands.
+No em dashes in the README. Isolated checkout skill and protected-manifest checks
+passed. Full `bash scripts/check.sh` completed gofmt/vet, then exited 1 because
+`TestRunnerPythonFixture` timed out after 10 minutes during Docker Compose startup;
+other listed Go packages passed. A no-credentials `go run ... scan` attempt was
+blocked by Windows Application Control before execution, not reported as passed.
+Commit and push explicitly authorized. Publish this task's documentation only.
+
 ## F6 + F7 (2026-11-04, code DONE — see RESULTS.md for measured numbers)
 
 F6 BYOA auto-drafter: `internal/draft/` (new, unprotected, +test),

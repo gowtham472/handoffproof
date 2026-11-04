@@ -364,3 +364,24 @@ Meta Model API details (endpoint, auth, model ID, structured output support).
 | 2026-11-01 | Slack/GitHub features are documented as user guides under `docs/guide/` (connect-slack, connect-github) with setup, permissions, storage, limitations, and troubleshooting; the pair is presented as HOP Connect only in documentation/navigation wording, not as a new product surface | Features existed only as scattered README/PLAN notes; users need task-level instructions |
 | 2026-11-01 | Bring Your Own App as a separate profile-driven engine (`internal/byoa`), not a rewrite of the demo drills: declarative `handoffproof.json` (no secret values, no shell), operator-only registry with AES-GCM-encrypted wizard env values, local/GitHub archive import, Compose denylist + parsed service verification, isolated no-port sandbox, generic http/sql_count/log/file steps, and generalized credential/config/backup faults writing evidence with app/source provenance | Users must test their own applications; hard-wiring the demo into controller/drills would risk the proven demo path and cannot describe arbitrary workflows |
 | 2026-11-01 | Illustrations + About topic rail: real Storyset SVGs (Agreement, Bug-fixing, Documents, Data Extraction, Team work) downloaded and recolored into the IBM palette (`#0f62fe` / `#6929c4`), served from `/assets/illustrations/` and used on Readiness, Rehearse, Evidence, Insights, and About; eyebrow chip-labels removed; master–detail columns equalized via stretch layout; About restructured to QSDTS's `.doc` grid with a sticky "On this page" topic rail and scrollspy; logo concept generated to `docs/logo-concept.png` | User asked for Storyset/unDraw-style illustrations in all places, a logo prompt/concept, correct About sections, and the QSDTS side rail of topics |
+
+
+## README refresh (2026-11-04)
+
+Document current behaviour from CLI handlers, routing configuration, UI handlers,
+existing guides, and recorded results. Explain interviews, private mode, drafting,
+and experimental whiteboard claims as user workflows. Separate core per-phase
+routing from transcription, image operations and interview extraction. Explain
+that SAM receives the original image before vision-stage pixelation, and that
+hybrid mode is not a whole-application offline guarantee.
+
+Correct `repair` to applying an existing diff and rerunning acceptance; describe
+`drill --full` as the model-proposal path. Distinguish CLI-generated draft records
+from the wizard's load action. Consolidate limitations and link recorded results
+rather than presenting current general verification or accuracy claims.
+
+Keep the existing repository demo master and remove public links into ignored
+video-production folders. The tracked master is 2:30, a separate modified local
+master is 2:55, and the local videos/v5 export is 2:58; do not assign a local
+cut's duration to the published repository link. This documentation
+change does not replace either local video workflow or publish a new master.
