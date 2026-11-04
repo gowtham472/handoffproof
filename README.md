@@ -24,6 +24,8 @@ and experimental whiteboard inputs against code, configuration, and recorded evi
 Built independently by Gowtham in Chennai during the Meta Global AI Developer Hackathon,
 October 26 to November 4, 2026.
 
+**Demo video:** [Watch HandoffProof on YouTube](https://youtu.be/LIAsrzvvelM).
+
 ## Contents
 
 - [Why HandoffProof](#why-handoffproof)
