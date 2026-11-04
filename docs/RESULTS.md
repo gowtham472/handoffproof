@@ -2,7 +2,7 @@
 
 Measured on the demo app and a second fixture (author-written). Misses are reported plainly; anything not run is labelled a target.
 
-Date: 2026-11-03 · Commit: 1fcef3f · Model: muse-spark-1.3
+Date: 2026-11-04 · Commit: bc4b2ab · Model: muse-spark-1.3
 
 | Arm | App | Injected | Caught | Missed | False alarms | Tokens/run |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -36,6 +36,12 @@ These model-quality numbers come from one recorded run with five findings and ar
 ## Model comparison (profiles x apps, 3 runs per cell)
 
 Each cell runs the six agent phases live behind the profile router on the same recorded controller drill evidence; detection arms are controller-driven and identical across profiles, while citation, retry, token, latency, cost and repair columns vary by model. Sample size: 3 runs per cell on author-written fixtures (`demo-app`, `eval/fixtures/heldout-app`). Rows labelled `not run` never started; their reason is recorded, not omitted. Denominators: apply = cells whose proposal carried a diff; green = applied cells.
+
+Historical artifact limitations: these saved cells predate application-scoped evidence filtering. Their prompts included mixed demo and BYOA records, and second-fixture repairs were incorrectly attempted against the demo-app copy. Some logs also record a manifest mismatch during a historical repair. These are harness defects, so the table is not a clean controlled model comparison. The fixes have not been evaluated with live models; rendering saved cells does not repair or replace their measurements.
+
+Cit V/I counts model-verifier verdicts: verified requires both citation_ok and evidence_ok; invalid means citation_ok is false. It is not the deterministic file/line checker count, and V/I is two counts, not a success fraction. The deterministic checker resolves diagnosis paths and line ranges and checks evidence IDs; it does not prove semantic support. Several model findings used only EV identifiers instead of file:line references. Apply 1st-try counts whether the first prioritized nonempty diff applied to a sandbox; it does not establish recovery. Bad diff context and the harness workspace error both contributed to failures. Controller verdicts never depend on model citations.
+
+The earlier five-verdict verification.json is a separate model-verifier artifact from the demo workflow. Its exact source revision and invocation are not recorded, so identical checker/workspace/code provenance cannot be established from the artifact; it must not be compared as a repeat of these cells.
 
 | Profile | App | Runs OK | Caught | Missed | False alarms | Cit V/I | Schema-fail turns | Tokens/run | Latency/run | Est. $/run | Apply 1st-try | Rerun green |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
