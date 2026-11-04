@@ -30,3 +30,6 @@ Thumbs.db
 /demo/handoffproof-demo.validation.json
 /generated_images/*
 !/generated_images/handoffproof-concept.png
+
+# Standalone landing build
+/landing/dist/

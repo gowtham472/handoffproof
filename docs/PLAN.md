@@ -1,5 +1,12 @@
 # HandoffProof - 3-day build plan (Step 1)
 
+## Standalone landing deployment (2026-11-04, user requested)
+
+Prepare a static-only Vercel build rooted at landing, package all public assets,
+and route standalone calls to the demo, repository and recorded validation.
+Preserve the embedded Go build, protected files, model results and local video.
+Validate typecheck, static build and the project gate before publishing setup.
+
 ## Final stabilization (2026-11-04, user-approved autonomous mission)
 
 No new features. Audit baseline and security, bound Compose subprocesses, diagnose saved
